@@ -1,6 +1,7 @@
 // ==UserScript==
-// @name         WME Addons - by Miodeq
+// @name         WME Addons
 // @version      1.3
+// @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
 // @match        https://*.waze.com/editor*
@@ -10,8 +11,9 @@
 // @grant        none
 // @downloadURL  https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
 // @updateURL    https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
-// @icon         https://github.com/miodeq-ofc/waze-addons/blob/main/logo.png
+// @icon         https://raw.githubusercontent.com/miodeq-ofc/waze-addons/blob/main/logo.png
 // ==/UserScript==
+
 
 (function () {
 
@@ -65,28 +67,23 @@
       slider.min = "0";
       slider.max = "100";
       slider.value = "100";
-      slider.className = "geoportal-opacity-addon hidden"; // ukryty na start
+      slider.className = "geoportal-opacity-addon hidden"; 
 
       layer.setOpacity(1);
-
-      // event slider
+      
       slider.addEventListener("input", function () {
         layer.setOpacity(this.value / 100);
       });
 
       targetLi.appendChild(slider);
 
-      // event checkbox
       if (checkbox) {
         const updateSliderVisibility = () => {
           const checked = checkbox.checked !== undefined ? checkbox.checked : checkbox.hasAttribute('checked');
           slider.classList.toggle('hidden', !checked);
         };
-
-        // inicjalnie sprawdź
         updateSliderVisibility();
 
-        // nasłuchuj zmiany
         checkbox.addEventListener('change', updateSliderVisibility);
       }
 
