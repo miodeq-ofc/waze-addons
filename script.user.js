@@ -8,6 +8,8 @@
 // @match        https://*.waze.com/beta_editor*
 // @run-at       document-end
 // @grant        none
+// @downloadURL  https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
+// @updateURL    https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
 // ==/UserScript==
 
 (function () {
