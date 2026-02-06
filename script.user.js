@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta 1.7
+// @version      Beta 1.8
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -16,19 +16,30 @@
 
 (function () {
 
-                                      const SCRIPT_VERSION = "Beta 1.7";
+                                      const SCRIPT_VERSION = "Beta 1.8";
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
   ];
 
-                              function showChangelog() {
-                                alert(`Nowa wersja ${SCRIPT_VERSION} skryptu WME Addons!
-                            Co nowego:
-                            - Dodano suwaki przezroczystości dla warstw Geoportal
-                            - Poprawki wizualne`);
-                              }
 
+
+
+  
+                              function showChangelog() {
+alert(`Nowa wersja ${SCRIPT_VERSION} skryptu WME Addons!
+Co nowego:
+- Dodano suwaki przezroczystości dla warstw Geoportal
+- Poprawki wizualne`);
+ }
+
+
+
+
+  
+
+
+  
   function checkVersion() {
     const lastVersion = localStorage.getItem("wme_addons_version");
     if (lastVersion !== SCRIPT_VERSION) {
