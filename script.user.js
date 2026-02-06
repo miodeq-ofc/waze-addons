@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-1.9
+// @version      Beta-2.0
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -16,7 +16,7 @@
 
 (function () {
 
-                                      const SCRIPT_VERSION = "Beta-1.9";
+                                      const SCRIPT_VERSION = "Beta-2.0";
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
@@ -103,25 +103,35 @@ Co nowego:
 
       targetLi.appendChild(slider);
 
-    if (checkbox) {
-        const updateSliderVisibility = () => {
-            let checked = false;
-    
-            // Dla natywnego input
-            if ('checked' in checkbox) {
-                checked = checkbox.checked;
-            }
-            // Dla WME <wz-checkbox>
-            else if (typeof checkbox.isChecked === "function") {
-                checked = checkbox.isChecked();
-            }
-    
-            slider.classList.toggle('hidden', !checked);
-        };
-    
-        updateSliderVisibility();
-        checkbox.addEventListener('change', updateSliderVisibility);
-    }
+      if (checkbox) {
+          const updateSliderVisibility = () => {
+              let checked = false;
+      
+              // dla natywnych inputów
+              if ('checked' in checkbox) {
+                  checked = checkbox.checked;
+              }
+              // dla WME wz-checkbox
+              else if (typeof checkbox.isChecked === "function") {
+                  checked = checkbox.isChecked();
+              }
+      
+              if (checked) {
+                  slider.classList.remove('hidden');
+              } else {
+                  slider.classList.add('hidden');
+              }
+          };
+      
+          // poczekaj 200ms, żeby WME zainicjalizowało checkbox
+          setTimeout(() => {
+              updateSliderVisibility();
+              checkbox.addEventListener('change', updateSliderVisibility);
+          }, 200);
+      } else {
+          // jeśli checkbox nie istnieje, pokaż suwak na wszelki wypadek
+          slider.classList.remove('hidden');
+      }
 
       console.log("Geoportal addon: opacity slider added for", layerName);
     });
