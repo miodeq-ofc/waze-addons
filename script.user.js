@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.3
+// @version      1.4
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
