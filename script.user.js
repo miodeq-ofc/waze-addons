@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-1.8
+// @version      Beta-1.9
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -16,7 +16,7 @@
 
 (function () {
 
-                                      const SCRIPT_VERSION = "Beta-1.8";
+                                      const SCRIPT_VERSION = "Beta-1.9";
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
@@ -29,7 +29,7 @@
                               function showChangelog() {
 alert(`Nowa wersja ${SCRIPT_VERSION} skryptu WME Addons!
 Co nowego:
-- Dodano suwaki przezroczystości dla warstw Geoportal
+- Poprawki działania suwaków
 - Poprawki wizualne`);
  }
 
@@ -103,15 +103,25 @@ Co nowego:
 
       targetLi.appendChild(slider);
 
-      if (checkbox) {
+    if (checkbox) {
         const updateSliderVisibility = () => {
-          const checked = checkbox.checked || checkbox.hasAttribute('checked');
-          slider.classList.toggle('hidden', !checked);
+            let checked = false;
+    
+            // Dla natywnego input
+            if ('checked' in checkbox) {
+                checked = checkbox.checked;
+            }
+            // Dla WME <wz-checkbox>
+            else if (typeof checkbox.isChecked === "function") {
+                checked = checkbox.isChecked();
+            }
+    
+            slider.classList.toggle('hidden', !checked);
         };
+    
         updateSliderVisibility();
-
         checkbox.addEventListener('change', updateSliderVisibility);
-      }
+    }
 
       console.log("Geoportal addon: opacity slider added for", layerName);
     });
