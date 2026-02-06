@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta 1.8
+// @version      Beta-1.8
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -16,7 +16,7 @@
 
 (function () {
 
-                                      const SCRIPT_VERSION = "Beta 1.8";
+                                      const SCRIPT_VERSION = "Beta-1.8";
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
