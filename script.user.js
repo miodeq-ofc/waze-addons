@@ -15,7 +15,8 @@
 // ==/UserScript==
 
 (function () {
-
+  
+              const SCRIPT_VERSION = "1.7";
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
@@ -24,7 +25,7 @@
                     // Funkcja wyświetlająca dialog z informacjami o nowej wersji
                     function showChangelog() {
                       const changelog = `
-                  Nowa wersja 1.6 skryptu WME Addons!
+                  Nowa wersja ${SCRIPT_VERSION} skryptu WME Addons!
                   Co nowego:
                   - Dodano suwaki przezroczystości dla warstw Geoportal
                   - Poprawki wizualne
