@@ -11,7 +11,7 @@
 // @grant        none
 // @downloadURL  https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
 // @updateURL    https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
-// @icon         https://raw.githubusercontent.com/miodeq-ofc/waze-addons/blob/main/logo.png
+// @icon         https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
 // ==/UserScript==
 
 
