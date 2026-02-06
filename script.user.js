@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Addons - by Miodeq
 // @version      1.2
-// @description  Adds opacity slider for selected Geoportal layers, visible only when layer is ON
+// @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
 // @match        https://*.waze.com/editor*
 // @match        https://*.waze.com/map-editor*
