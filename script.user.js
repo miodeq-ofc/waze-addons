@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-2.6
+// @version      Beta-2.7
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -103,36 +103,9 @@
   }
 
   /***********************************************************
-   * AUTO VISIBILITY – ALWAYS FORCE VISIBLE
-   ***********************************************************/
-function forceVisible() {
-    if (!window.W || !W.loginManager || !W.loginManager.user) return;
-
-    const user = W.loginManager.user;
-
-    // jeśli WME ustawił niewidzialny tryb – cofamy to
-    if (user.isInvisible === true) {
-      console.log('WME Addons: forcing editor visibility');
-      user.isInvisible = false;
-
-      // sync z serwerem
-      if (W.loginManager._updateUserPreferences) {
-        W.loginManager._updateUserPreferences();
-      }
-    }
-  }
-
-  function startWatcher() {
-    setInterval(forceVisible, 2000);
-  }
-
-  startWatcher();
-
-  /***********************************************************
    * INIT
    ***********************************************************/
   addStyles();
   waitForLayerAndUI();
-  startAutoVisibilityWatcher();
 
 })();
