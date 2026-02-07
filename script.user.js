@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-2.7
+// @version      Beta-2.8
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -17,9 +17,6 @@
 (function () {
   'use strict';
 
-  /***********************************************************
-   * OPACITY SLIDERS
-   ***********************************************************/
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
@@ -33,6 +30,7 @@
         margin-top: 4px;
         accent-color: #33ccff;
       }
+
       .geoportal-opacity-addon.hidden {
         display: none;
       }
@@ -99,13 +97,11 @@
         updateSliderVisibility();
         checkbox.addEventListener('change', updateSliderVisibility);
       }
+
+      console.log("WME Addons: opacity slider added for", layerName);
     });
   }
 
-  /***********************************************************
-   * INIT
-   ***********************************************************/
   addStyles();
   waitForLayerAndUI();
-
 })();
