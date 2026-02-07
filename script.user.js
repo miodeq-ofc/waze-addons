@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.3
+// @version      1.4
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -18,7 +18,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.3';
+const SCRIPT_VERSION = '1.4';
 
 (function () {
     'use strict';
@@ -68,6 +68,7 @@ const SCRIPT_VERSION = '1.3';
             toolboxCheckbox.on('click', () => {
                 const tb = document.getElementById('WMETB_NavBar');
                 const tbSpan = document.getElementById('WMETB_NavBarSpan');
+                const tooltips = document.getElementsByClassName('WMETBtooltip');
                 if (!tb || !tbSpan) return;
 
                 tb.style.display = 'flex';
@@ -79,10 +80,23 @@ const SCRIPT_VERSION = '1.3';
                     tb.style.flexDirection = 'row';
                     tb.style.width = 'auto';
                     tbSpan.textContent = 'Toolbox';
+
+                    Array.from(tooltips).forEach(t => {
+                        t.style.border = '';
+                        t.style.borderBottom = '';
+                    });
+
                 } else {
                     tb.style.flexDirection = 'column';
                     tb.style.width = '30px';
                     tbSpan.textContent = 'TB';
+
+                    Array.from(tooltips).forEach(t => {
+                        t.style.border = 'none';
+                        t.style.borderTop = '1px solid #8d8d8d';
+                    });
+
+
                 }
 
                 Array.from(tb.children).forEach(child => {
