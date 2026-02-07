@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-2.5
+// @version      Beta-2.6
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -103,29 +103,45 @@
   }
 
   /***********************************************************
-   * AUTO VISIBILITY (WYMUSZA WIDZIALNOŚĆ)
+   * AUTO VISIBILITY – ALWAYS FORCE VISIBLE
    ***********************************************************/
+  let visibilityCooldown = false;
+
   function ensureEditorVisibility() {
-    const wzButton = document.querySelector('wz-button[color="clear-icon"]');
-    if (!wzButton || !wzButton.shadowRoot) return;
+    if (visibilityCooldown) return;
 
-    const icon = wzButton.shadowRoot.querySelector('i');
-    const button = wzButton.shadowRoot.querySelector('button');
-    if (!icon || !button) return;
+    const buttons = document.querySelectorAll('wz-button');
 
-    const className = icon.className;
+    buttons.forEach(wzButton => {
+      if (!wzButton.shadowRoot) return;
 
-    // NIEWIDZIALNY → klikamy
-    if (className.includes('w-icon-invisible')) {
-      console.log('WME Addons: invisible → switching to visible');
-      button.click();
-    }
+      const icon = wzButton.shadowRoot.querySelector('i');
+      const button = wzButton.shadowRoot.querySelector('button');
+      if (!icon || !button) return;
 
-    // WIDZIALNY → NIC NIE ROBIMY
+      // TYLKO ten przycisk, który faktycznie ma ikony eye/invisible
+      if (!icon.className.includes('w-icon-eye1') &&
+          !icon.className.includes('w-icon-invisible')) {
+        return;
+      }
+
+      // JESTEŚ NIEWIDZIALNY → KLIK 1 RAZ
+      if (icon.className.includes('w-icon-invisible')) {
+        console.log('WME Addons: invisible → switching to visible');
+
+        visibilityCooldown = true;
+        button.click();
+
+        // cooldown żeby WME zdążyło zmienić stan
+        setTimeout(() => {
+          visibilityCooldown = false;
+        }, 3000);
+      }
+    });
   }
 
   function startAutoVisibilityWatcher() {
-    setInterval(ensureEditorVisibility, 2000);
+    setInterval(ensureEditorVisibility, 1500);
   }
 
   /***********************************************************
