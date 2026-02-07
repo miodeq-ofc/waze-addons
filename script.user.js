@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.4
+// @version      1.5
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -18,7 +18,9 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.4';
+const SCRIPT_VERSION = '1.5';
+const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
+const DEFAULT_COLOR = '#33ccff';
 
 (function () {
     'use strict';
@@ -26,20 +28,45 @@ const SCRIPT_VERSION = '1.4';
     const LAYERS_WITH_OPACITY = ["Geoportal - ulice", "Geoportal - OSM"];
     let wmeSDK;
 
-    // ---------- STYLES (BRAKOWAŁO – TO BYŁ BUG) ----------
+    // ---------- CSS VARIABLES ----------
+    function initCssVariables() {
+        const root = document.documentElement;
+
+        if (!root.style.getPropertyValue('--primary')) {
+            root.style.setProperty('--primary', DEFAULT_COLOR);
+            root.style.setProperty('--primary_variant', DEFAULT_COLOR);
+        }
+    }
+
+    function restoreColorFromStorage() {
+        const saved = localStorage.getItem(COLOR_STORAGE_KEY);
+        if (saved) {
+            document.documentElement.style.setProperty('--primary', saved);
+            document.documentElement.style.setProperty('--primary_variant', saved);
+        }
+    }
+
+    // ---------- STYLES ----------
     function addStyles() {
         const style = document.createElement("style");
         style.textContent = `
-            .geoportal-opacity-addon {
-                width: 100%;
-                margin-top: 4px;
-                accent-color: #33ccff;
-            }
+        .geoportal-opacity-addon {
+            width: 100%;
+            margin-top: 4px;
+            accent-color: var(--primary);
+        }
 
-            .geoportal-opacity-addon.hidden {
-                display: none;
-            }
-        `;
+        .geoportal-opacity-addon.hidden {
+            display: none;
+        }
+
+        /* Border pod "by Miodeq" */
+        #addons-settings > p {
+            border-bottom: 1px solid var(--content_p1);
+            padding-bottom: 4px; /* opcjonalnie, żeby nie przylegało */
+            margin-bottom: 10px;
+        }
+    `;
         document.head.appendChild(style);
     }
 
@@ -58,6 +85,55 @@ const SCRIPT_VERSION = '1.4';
             scriptContentPane.append(`<p>Version: ${SCRIPT_VERSION} · by Miodeq</p>`);
 
             const settingsDiv = $('<div style="margin-top:10px;"></div>');
+
+            // --- Color Picker (NA GÓRZE) ---
+            const colorDiv = $('<div style="margin-bottom:10px;"></div>');
+            colorDiv.append('<h4>Theme color</h4>');
+
+            const currentColor =
+                  getComputedStyle(document.documentElement)
+            .getPropertyValue('--primary')
+            .trim() || DEFAULT_COLOR;
+
+            const colorRow = $('<div style="display:flex; align-items:center; gap:8px;"></div>');
+
+            const colorInput = $(`
+           <input type="color"
+           id="wme-addons-color-picker"
+           value="${currentColor}">
+        `);
+
+            const resetButton = $(`
+            <button type="button"
+            style="padding:2px 6px; cursor:pointer;">
+            Default
+            </button>
+        `);
+
+            colorInput.on('input', () => {
+                const color = colorInput.val();
+
+                document.documentElement.style.setProperty('--primary', color);
+                document.documentElement.style.setProperty('--primary_variant', color);
+
+                localStorage.setItem(COLOR_STORAGE_KEY, color);
+            });
+
+            resetButton.on('click', () => {
+                document.documentElement.style.setProperty('--primary', DEFAULT_COLOR);
+                document.documentElement.style.setProperty('--primary_variant', DEFAULT_COLOR);
+
+                colorInput.val(DEFAULT_COLOR);
+                localStorage.removeItem(COLOR_STORAGE_KEY);
+            });
+
+            colorRow.append(colorInput);
+            colorRow.append(resetButton);
+            colorDiv.append(colorRow);
+            settingsDiv.append(colorDiv);
+
+
+            // --- Horizontal Toolbox ---
             settingsDiv.append('<h3>Settings</h3>');
 
             const toolboxDiv = $('<div style="margin-top:10px;"></div>');
@@ -85,7 +161,6 @@ const SCRIPT_VERSION = '1.4';
                         t.style.border = '';
                         t.style.borderBottom = '';
                     });
-
                 } else {
                     tb.style.flexDirection = 'column';
                     tb.style.width = '30px';
@@ -95,8 +170,6 @@ const SCRIPT_VERSION = '1.4';
                         t.style.border = 'none';
                         t.style.borderTop = '1px solid #8d8d8d';
                     });
-
-
                 }
 
                 Array.from(tb.children).forEach(child => {
@@ -104,19 +177,22 @@ const SCRIPT_VERSION = '1.4';
                 });
             });
 
+            // --- Features ---
             const featuresDiv = $('<div style="margin-top:15px;"></div>');
             featuresDiv.append('<h4>Features</h4>');
             featuresDiv.append(`
-                <ul style="padding-left:20px;">
-                    <li>Geoportal - ulice: opacity slider</li>
-                    <li>Geoportal - OSM: opacity slider</li>
-                </ul>
-            `);
+            <ul style="padding-left:20px;">
+                <li>Geoportal - ulice: opacity slider</li>
+                <li>Geoportal - OSM: opacity slider</li>
+                <li>Custom theme color</li>
+            </ul>
+        `);
 
             scriptContentPane.append(settingsDiv);
             scriptContentPane.append(featuresDiv);
         });
     }
+
 
     // ---------- OPACITY SLIDERS ----------
     function waitForLayerAndUI() {
@@ -191,6 +267,8 @@ const SCRIPT_VERSION = '1.4';
     });
 
     // ---------- START ----------
+    initCssVariables();
+    restoreColorFromStorage();
     addStyles();
     waitForLayerAndUI();
 
