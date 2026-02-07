@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-2.1
+// @version      Beta-2.2
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -14,28 +14,14 @@
 // @icon         https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
 // ==/UserScript==
 
-(function () {
 
-  const SCRIPT_VERSION = "Beta-2.1";
+(function () {
+  'use strict';
+
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
   ];
-
-  function showChangelog() {
-    alert(`Nowa wersja ${SCRIPT_VERSION} skryptu WME Addons!
-Co nowego:
-- Stabilne suwaki przezroczystości
-- Poprawiona obsługa włączania/wyłączania warstw`);
-  }
-
-  function checkVersion() {
-    const last = localStorage.getItem("wme_addons_version");
-    if (last !== SCRIPT_VERSION) {
-      showChangelog();
-      localStorage.setItem("wme_addons_version", SCRIPT_VERSION);
-    }
-  }
 
   function addStyles() {
     const style = document.createElement("style");
@@ -45,6 +31,7 @@ Co nowego:
         margin-top: 4px;
         accent-color: #33ccff;
       }
+
       .geoportal-opacity-addon.hidden {
         display: none;
       }
@@ -53,7 +40,11 @@ Co nowego:
   }
 
   function waitForLayerAndUI() {
-    if (!window.W || !W.map || !document.querySelector('#layer-switcher-region')) {
+    if (
+      !window.W ||
+      !W.map ||
+      !document.querySelector('#layer-switcher-region .menu .list-unstyled')
+    ) {
       return setTimeout(waitForLayerAndUI, 1000);
     }
 
@@ -66,10 +57,14 @@ Co nowego:
       if (!layer) return;
 
       let targetLi = null;
+      let checkbox = null;
 
       listItems.forEach(li => {
         if (li.textContent.trim() === layerName) {
           targetLi = li;
+          checkbox =
+            li.querySelector('wz-checkbox') ||
+            li.querySelector('input[type="checkbox"]');
         }
       });
 
@@ -80,7 +75,7 @@ Co nowego:
       slider.min = "0";
       slider.max = "100";
       slider.value = "100";
-      slider.className = "geoportal-opacity-addon";
+      slider.className = "geoportal-opacity-addon hidden";
 
       layer.setOpacity(1);
 
@@ -90,20 +85,24 @@ Co nowego:
 
       targetLi.appendChild(slider);
 
-      // 🔥 JEDYNE PEWNE ŹRÓDŁO PRAWDY
-      const updateVisibility = () => {
-        slider.classList.toggle("hidden", !layer.getVisibility());
-      };
+      if (checkbox) {
+        const updateSliderVisibility = () => {
+          const checked =
+            checkbox.checked !== undefined
+              ? checkbox.checked
+              : checkbox.hasAttribute('checked');
 
-      updateVisibility();
-      layer.events.register("visibilitychanged", layer, updateVisibility);
+          slider.classList.toggle('hidden', !checked);
+        };
 
-      console.log("Geoportal addon: opacity slider added for", layerName);
+        updateSliderVisibility();
+        checkbox.addEventListener('change', updateSliderVisibility);
+      }
+
+      console.log("WME Addons: opacity slider added for", layerName);
     });
   }
 
-  checkVersion();
   addStyles();
   waitForLayerAndUI();
-
 })();
