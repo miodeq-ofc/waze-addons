@@ -105,44 +105,28 @@
   /***********************************************************
    * AUTO VISIBILITY – ALWAYS FORCE VISIBLE
    ***********************************************************/
-  let visibilityCooldown = false;
+function forceVisible() {
+    if (!window.W || !W.loginManager || !W.loginManager.user) return;
 
-  function ensureEditorVisibility() {
-    if (visibilityCooldown) return;
+    const user = W.loginManager.user;
 
-    const buttons = document.querySelectorAll('wz-button');
+    // jeśli WME ustawił niewidzialny tryb – cofamy to
+    if (user.isInvisible === true) {
+      console.log('WME Addons: forcing editor visibility');
+      user.isInvisible = false;
 
-    buttons.forEach(wzButton => {
-      if (!wzButton.shadowRoot) return;
-
-      const icon = wzButton.shadowRoot.querySelector('i');
-      const button = wzButton.shadowRoot.querySelector('button');
-      if (!icon || !button) return;
-
-      // TYLKO ten przycisk, który faktycznie ma ikony eye/invisible
-      if (!icon.className.includes('w-icon-eye1') &&
-          !icon.className.includes('w-icon-invisible')) {
-        return;
+      // sync z serwerem
+      if (W.loginManager._updateUserPreferences) {
+        W.loginManager._updateUserPreferences();
       }
-
-      // JESTEŚ NIEWIDZIALNY → KLIK 1 RAZ
-      if (icon.className.includes('w-icon-eye1')) {
-        console.log('WME Addons: invisible → switching to visible');
-
-        visibilityCooldown = true;
-        button.click();
-
-        // cooldown żeby WME zdążyło zmienić stan
-        setTimeout(() => {
-          visibilityCooldown = false;
-        }, 3000);
-      }
-    });
+    }
   }
 
-  function startAutoVisibilityWatcher() {
-    setInterval(ensureEditorVisibility, 1500);
+  function startWatcher() {
+    setInterval(forceVisible, 2000);
   }
+
+  startWatcher();
 
   /***********************************************************
    * INIT
