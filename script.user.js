@@ -126,7 +126,7 @@
       }
 
       // JESTEŚ NIEWIDZIALNY → KLIK 1 RAZ
-      if (icon.className.includes('w-icon-invisible')) {
+      if (icon.className.includes('w-icon-eye1')) {
         console.log('WME Addons: invisible → switching to visible');
 
         visibilityCooldown = true;
