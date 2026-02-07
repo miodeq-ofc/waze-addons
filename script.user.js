@@ -1,7 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @namespace    https://github.com/miodeq-ofc/waze-addons
-// @version      Beta-2.3
+// @version      Beta-2.4
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -18,10 +17,9 @@
 (function () {
   'use strict';
 
-  /******************************************************************
-   * OPACITY SLIDERS FOR SELECTED LAYERS
-   ******************************************************************/
-
+  /***********************************************************
+   * OPACITY SLIDERS
+   ***********************************************************/
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
@@ -35,7 +33,6 @@
         margin-top: 4px;
         accent-color: #33ccff;
       }
-
       .geoportal-opacity-addon.hidden {
         display: none;
       }
@@ -43,13 +40,13 @@
     document.head.appendChild(style);
   }
 
-  function initOpacitySliders() {
+  function waitForLayerAndUI() {
     if (
       !window.W ||
       !W.map ||
       !document.querySelector('#layer-switcher-region .menu .list-unstyled')
     ) {
-      return setTimeout(initOpacitySliders, 1000);
+      return setTimeout(waitForLayerAndUI, 1000);
     }
 
     const listItems = document.querySelectorAll(
@@ -107,38 +104,36 @@
     });
   }
 
-  /******************************************************************
-   * AUTO RESTORE EDITOR VISIBILITY
-   ******************************************************************/
-
-  function ensureEditorVisibility() {
+  /***********************************************************
+   * AUTO INVISIBILITY (ODWROTNA LOGIKA)
+   ***********************************************************/
+  function ensureEditorInvisibility() {
     const wzButton = document.querySelector('wz-button[color="clear-icon"]');
     if (!wzButton || !wzButton.shadowRoot) return;
 
     const innerButton = wzButton.shadowRoot.querySelector('button');
-    const invisibleIcon = wzButton.querySelector('i.w-icon-eye-off');
+    if (!innerButton) return;
 
-    if (invisibleIcon && innerButton) {
-      console.log('WME Addons: editor invisible → restoring visibility');
+    // aria-pressed="true"  -> WIDZIALNY
+    // aria-pressed="false" -> NIEWIDZIALNY
+    const isVisible = innerButton.getAttribute('aria-pressed') === 'true';
+
+    if (isVisible) {
+      console.log('WME Addons: editor visible → switching to invisible');
       innerButton.click();
     }
   }
 
-  function initVisibilityWatcher() {
-    if (!window.W || !document.querySelector('wz-button[color="clear-icon"]')) {
-      return setTimeout(initVisibilityWatcher, 1000);
-    }
-
-    // sprawdzaj co 5 sekund (bezpieczne)
-    setInterval(ensureEditorVisibility, 5000);
+  function startAutoInvisibilityWatcher() {
+    // sprawdzaj co 3 sekundy (bezpieczne, bez spamu)
+    setInterval(ensureEditorInvisibility, 3000);
   }
 
-  /******************************************************************
+  /***********************************************************
    * INIT
-   ******************************************************************/
-
+   ***********************************************************/
   addStyles();
-  initOpacitySliders();
-  initVisibilityWatcher();
+  waitForLayerAndUI();
+  startAutoInvisibilityWatcher();
 
 })();
