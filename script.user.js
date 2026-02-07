@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-2.0
+// @version      Beta-2.1
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -16,33 +16,22 @@
 
 (function () {
 
-                                      const SCRIPT_VERSION = "Beta-2.0";
+  const SCRIPT_VERSION = "Beta-2.1";
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
     "Geoportal - OSM"
   ];
 
-
-
-
-  
-                              function showChangelog() {
-alert(`Nowa wersja ${SCRIPT_VERSION} skryptu WME Addons!
+  function showChangelog() {
+    alert(`Nowa wersja ${SCRIPT_VERSION} skryptu WME Addons!
 Co nowego:
-- Poprawki działania suwaków
-- Poprawki wizualne`);
- }
+- Stabilne suwaki przezroczystości
+- Poprawiona obsługa włączania/wyłączania warstw`);
+  }
 
-
-
-
-  
-
-
-  
   function checkVersion() {
-    const lastVersion = localStorage.getItem("wme_addons_version");
-    if (lastVersion !== SCRIPT_VERSION) {
+    const last = localStorage.getItem("wme_addons_version");
+    if (last !== SCRIPT_VERSION) {
       showChangelog();
       localStorage.setItem("wme_addons_version", SCRIPT_VERSION);
     }
@@ -64,7 +53,7 @@ Co nowego:
   }
 
   function waitForLayerAndUI() {
-    if (!window.W || !W.map || !document.querySelector('#layer-switcher-region .menu .list-unstyled')) {
+    if (!window.W || !W.map || !document.querySelector('#layer-switcher-region')) {
       return setTimeout(waitForLayerAndUI, 1000);
     }
 
@@ -77,12 +66,10 @@ Co nowego:
       if (!layer) return;
 
       let targetLi = null;
-      let checkbox = null;
 
       listItems.forEach(li => {
         if (li.textContent.trim() === layerName) {
           targetLi = li;
-          checkbox = li.querySelector('wz-checkbox') || li.querySelector('input[type="checkbox"]');
         }
       });
 
@@ -93,45 +80,23 @@ Co nowego:
       slider.min = "0";
       slider.max = "100";
       slider.value = "100";
-      slider.className = "geoportal-opacity-addon hidden"; 
+      slider.className = "geoportal-opacity-addon";
 
       layer.setOpacity(1);
-      
+
       slider.addEventListener("input", function () {
         layer.setOpacity(this.value / 100);
       });
 
       targetLi.appendChild(slider);
 
-      if (checkbox) {
-          const updateSliderVisibility = () => {
-              let checked = false;
-      
-              // dla natywnych inputów
-              if ('checked' in checkbox) {
-                  checked = checkbox.checked;
-              }
-              // dla WME wz-checkbox
-              else if (typeof checkbox.isChecked === "function") {
-                  checked = checkbox.isChecked();
-              }
-      
-              if (checked) {
-                  slider.classList.remove('hidden');
-              } else {
-                  slider.classList.add('hidden');
-              }
-          };
-      
-          // poczekaj 200ms, żeby WME zainicjalizowało checkbox
-          setTimeout(() => {
-              updateSliderVisibility();
-              checkbox.addEventListener('change', updateSliderVisibility);
-          }, 200);
-      } else {
-          // jeśli checkbox nie istnieje, pokaż suwak na wszelki wypadek
-          slider.classList.remove('hidden');
-      }
+      // 🔥 JEDYNE PEWNE ŹRÓDŁO PRAWDY
+      const updateVisibility = () => {
+        slider.classList.toggle("hidden", !layer.getVisibility());
+      };
+
+      updateVisibility();
+      layer.events.register("visibilitychanged", layer, updateVisibility);
 
       console.log("Geoportal addon: opacity slider added for", layerName);
     });
