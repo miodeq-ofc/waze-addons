@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      26.5
+// @version      26.6
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -19,7 +19,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '26.5';
+const SCRIPT_VERSION = '26.6';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -44,6 +44,7 @@ const DEFAULT_COLOR = '#33ccff';
         if (saved) {
             document.documentElement.style.setProperty('--primary', saved);
             document.documentElement.style.setProperty('--primary_variant', saved);
+            updateChipColor(saved);
         }
     }
 
@@ -114,10 +115,13 @@ const DEFAULT_COLOR = '#33ccff';
             colorInput.on('input', () => {
                 const color = colorInput.val();
 
+                // Zmieniamy główny kolor
                 document.documentElement.style.setProperty('--primary', color);
                 document.documentElement.style.setProperty('--primary_variant', color);
-
                 localStorage.setItem(COLOR_STORAGE_KEY, color);
+
+                // Zmieniamy lekko ciemniejszy kolor dla chipów
+                updateChipColor(color);
             });
 
             resetButton.on('click', () => {
@@ -126,13 +130,14 @@ const DEFAULT_COLOR = '#33ccff';
 
                 colorInput.val(DEFAULT_COLOR);
                 localStorage.removeItem(COLOR_STORAGE_KEY);
+
+                updateChipColor(DEFAULT_COLOR);
             });
 
             colorRow.append(colorInput);
             colorRow.append(resetButton);
             colorDiv.append(colorRow);
             settingsDiv.append(colorDiv);
-
 
             // --- Horizontal Toolbox ---
             settingsDiv.append('<h3>Settings</h3>');
@@ -194,6 +199,25 @@ const DEFAULT_COLOR = '#33ccff';
         });
     }
 
+    // ---------- FUNKCJA POMOCNICZA DO CIEMNIEJSZEGO CHIPA ----------
+    function updateChipColor(hexColor) {
+        const rgb = hexToRgb(hexColor);
+        if (rgb) {
+            const darkerRgb = rgb.map(c => Math.floor(c * 0.7)); // 80% jasności
+            document.documentElement.style.setProperty(
+                '--wz-chip-checked-background-color',
+                `rgb(${darkerRgb.join(',')})`
+            );
+        }
+    }
+
+    function hexToRgb(hex) {
+        hex = hex.replace(/^#/, '');
+        if (hex.length === 3) hex = hex.split('').map(h => h + h).join('');
+        if (hex.length !== 6) return null;
+        const bigint = parseInt(hex, 16);
+        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    }
 
     // ---------- OPACITY SLIDERS ----------
     function waitForLayerAndUI() {
