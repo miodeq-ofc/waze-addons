@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-2.4
+// @version      Beta-2.5
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -99,34 +99,31 @@
         updateSliderVisibility();
         checkbox.addEventListener('change', updateSliderVisibility);
       }
-
-      console.log("WME Addons: opacity slider added for", layerName);
     });
   }
 
   /***********************************************************
-   * AUTO INVISIBILITY (ODWROTNA LOGIKA)
+   * AUTO VISIBILITY (WYMUSZA WIDZIALNOŚĆ)
    ***********************************************************/
-  function ensureEditorInvisibility() {
+  function ensureEditorVisibility() {
     const wzButton = document.querySelector('wz-button[color="clear-icon"]');
     if (!wzButton || !wzButton.shadowRoot) return;
 
     const innerButton = wzButton.shadowRoot.querySelector('button');
     if (!innerButton) return;
 
-    // aria-pressed="true"  -> WIDZIALNY
-    // aria-pressed="false" -> NIEWIDZIALNY
-    const isVisible = innerButton.getAttribute('aria-pressed') === 'true';
+    // true  = widzialny
+    // false = niewidzialny
+    const isInvisible = innerButton.getAttribute('aria-pressed') === 'false';
 
-    if (isVisible) {
-      console.log('WME Addons: editor visible → switching to invisible');
+    if (isInvisible) {
+      console.log('WME Addons: editor invisible → switching to visible');
       innerButton.click();
     }
   }
 
-  function startAutoInvisibilityWatcher() {
-    // sprawdzaj co 3 sekundy (bezpieczne, bez spamu)
-    setInterval(ensureEditorInvisibility, 3000);
+  function startAutoVisibilityWatcher() {
+    setInterval(ensureEditorVisibility, 3000);
   }
 
   /***********************************************************
@@ -134,6 +131,6 @@
    ***********************************************************/
   addStyles();
   waitForLayerAndUI();
-  startAutoInvisibilityWatcher();
+  startAutoVisibilityWatcher();
 
 })();
