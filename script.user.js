@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.2
+// @version      1.3
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -18,7 +18,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.2';
+const SCRIPT_VERSION = '1.3';
 
 (function () {
     'use strict';
