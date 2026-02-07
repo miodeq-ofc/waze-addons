@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      26.v5
+// @version      26.5
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -19,7 +19,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '26.v5';
+const SCRIPT_VERSION = '26.5';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
