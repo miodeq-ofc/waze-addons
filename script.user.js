@@ -1,6 +1,7 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      Beta-2.2
+// @namespace    https://github.com/miodeq-ofc/waze-addons
+// @version      Beta-2.3
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -14,9 +15,12 @@
 // @icon         https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
 // ==/UserScript==
 
-
 (function () {
   'use strict';
+
+  /******************************************************************
+   * OPACITY SLIDERS FOR SELECTED LAYERS
+   ******************************************************************/
 
   const LAYERS_WITH_OPACITY = [
     "Geoportal - ulice",
@@ -39,13 +43,13 @@
     document.head.appendChild(style);
   }
 
-  function waitForLayerAndUI() {
+  function initOpacitySliders() {
     if (
       !window.W ||
       !W.map ||
       !document.querySelector('#layer-switcher-region .menu .list-unstyled')
     ) {
-      return setTimeout(waitForLayerAndUI, 1000);
+      return setTimeout(initOpacitySliders, 1000);
     }
 
     const listItems = document.querySelectorAll(
@@ -103,6 +107,38 @@
     });
   }
 
+  /******************************************************************
+   * AUTO RESTORE EDITOR VISIBILITY
+   ******************************************************************/
+
+  function ensureEditorVisibility() {
+    const wzButton = document.querySelector('wz-button[color="clear-icon"]');
+    if (!wzButton || !wzButton.shadowRoot) return;
+
+    const innerButton = wzButton.shadowRoot.querySelector('button');
+    const invisibleIcon = wzButton.querySelector('i.w-icon-eye-off');
+
+    if (invisibleIcon && innerButton) {
+      console.log('WME Addons: editor invisible → restoring visibility');
+      innerButton.click();
+    }
+  }
+
+  function initVisibilityWatcher() {
+    if (!window.W || !document.querySelector('wz-button[color="clear-icon"]')) {
+      return setTimeout(initVisibilityWatcher, 1000);
+    }
+
+    // sprawdzaj co 5 sekund (bezpieczne)
+    setInterval(ensureEditorVisibility, 5000);
+  }
+
+  /******************************************************************
+   * INIT
+   ******************************************************************/
+
   addStyles();
-  waitForLayerAndUI();
+  initOpacitySliders();
+  initVisibilityWatcher();
+
 })();
