@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.5
+// @version      26.v5
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -9,6 +9,7 @@
 // @match        https://*.waze.com/beta_editor*
 // @run-at       document-end
 // @grant        none
+// @ copyright   Miodeq, Mateusz Tomaszek 2026
 // @downloadURL  https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
 // @updateURL    https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
 // @icon         https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
@@ -18,7 +19,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.5';
+const SCRIPT_VERSION = '26.v5';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
