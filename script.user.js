@@ -109,21 +109,23 @@
     const wzButton = document.querySelector('wz-button[color="clear-icon"]');
     if (!wzButton || !wzButton.shadowRoot) return;
 
-    const innerButton = wzButton.shadowRoot.querySelector('button');
-    if (!innerButton) return;
+    const icon = wzButton.shadowRoot.querySelector('i');
+    const button = wzButton.shadowRoot.querySelector('button');
+    if (!icon || !button) return;
 
-    // true  = widzialny
-    // false = niewidzialny
-    const isInvisible = innerButton.getAttribute('aria-pressed') === 'false';
+    const className = icon.className;
 
-    if (isInvisible) {
-      console.log('WME Addons: editor invisible → switching to visible');
-      innerButton.click();
+    // NIEWIDZIALNY → klikamy
+    if (className.includes('w-icon-invisible')) {
+      console.log('WME Addons: invisible → switching to visible');
+      button.click();
     }
+
+    // WIDZIALNY → NIC NIE ROBIMY
   }
 
   function startAutoVisibilityWatcher() {
-    setInterval(ensureEditorVisibility, 3000);
+    setInterval(ensureEditorVisibility, 2000);
   }
 
   /***********************************************************
