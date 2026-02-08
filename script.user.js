@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.6
+// @version      1.1.7
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -19,7 +19,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.1.6';
+const SCRIPT_VERSION = '1.1.7';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -139,11 +139,11 @@ const DEFAULT_COLOR = '#33ccff';
             colorDiv.append(colorRow);
             settingsDiv.append(colorDiv);
 
-            // --- Horizontal Toolbox ---
+            // --- Vertical Toolbox ---
             settingsDiv.append('<h3>Settings</h3>');
 
             const toolboxDiv = $('<div style="margin-top:10px;"></div>');
-            const toolboxCheckbox = $('<wz-checkbox id="horizontal-toolbox">Horizontal ToolBox</wz-checkbox>');
+            const toolboxCheckbox = $('<wz-checkbox id="vertical-toolbox">Vertical ToolBox</wz-checkbox>');
             toolboxDiv.append(toolboxCheckbox);
             settingsDiv.append(toolboxDiv);
 
