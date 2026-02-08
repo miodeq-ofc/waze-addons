@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.7
+// @version      1.1.8
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -19,7 +19,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.1.7';
+const SCRIPT_VERSION = '1.1.8';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -188,8 +188,7 @@ const DEFAULT_COLOR = '#33ccff';
             featuresDiv.append('<h4>Features</h4>');
             featuresDiv.append(`
             <ul style="padding-left:20px;">
-                <li>Geoportal - ulice: opacity slider</li>
-                <li>Geoportal - OSM: opacity slider</li>
+                <li>Change layers opacity using sliders</li>
                 <li>Custom theme color</li>
             </ul>
         `);
