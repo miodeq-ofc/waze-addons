@@ -1,6 +1,6 @@
 # WME Addons
 
-# ⬇️ [DOWNLOAD SCRIPT](https://github.com/miodeq-ofc/waze-addons/blob/main/script.user.js)
+# [Donwload Script](https://github.com/miodeq-ofc/waze-addons/blob/main/script.user.js) ⇩
 
 ## PL – Polski
 
