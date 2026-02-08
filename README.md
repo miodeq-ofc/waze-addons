@@ -1,5 +1,7 @@
 # WME Addons
 
+# ⬇️ [DOWNLOAD SCRIPT](https://github.com/miodeq-ofc/waze-addons/blob/main/script.user.js)
+
 ## PL – Polski
 
 **WME Addons** to kolekcja dodatków i usprawnień do edytora map Waze (WME), które ułatwiają korzystanie z map oraz integrację z innymi skryptami użytkowników.
