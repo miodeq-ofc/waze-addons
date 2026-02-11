@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.9
+// @version      1.1.10
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -19,14 +19,24 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.1.9';
+const SCRIPT_VERSION = '1.1.10';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
 (function () {
     'use strict';
 
-    const LAYERS_WITH_OPACITY = ["Geoportal - ulice", "Geoportal - OSM"];
+    const LAYERS_WITH_OPACITY = [
+        "Geoportal - ortofoto",
+        "Geoportal - ortofotomapy o wysokiej rozdzielczości",
+        "Geoportal - OSM",
+        "Geoportal - ulice",
+        "Geoportal - place",
+        "Geoportal - miejsce",
+        "Geoportal - adresy, place i ulice w jednym",
+        "Geoportal - drogi",
+        "Geoportal - podział adm"
+    ];
     let wmeSDK;
 
     // ---------- CSS VARIABLES ----------
@@ -88,7 +98,7 @@ const DEFAULT_COLOR = '#33ccff';
 
             const settingsDiv = $('<div style="margin-top:10px;"></div>');
 
-            // --- Color Picker (NA GÓRZE) ---
+            // --- Color Picker ---
             const colorDiv = $('<div style="margin-bottom:10px;"></div>');
             colorDiv.append('<h4>Theme color</h4>');
 
@@ -115,12 +125,12 @@ const DEFAULT_COLOR = '#33ccff';
             colorInput.on('input', () => {
                 const color = colorInput.val();
 
-                // Zmieniamy główny kolor
+                
                 document.documentElement.style.setProperty('--primary', color);
                 document.documentElement.style.setProperty('--primary_variant', color);
                 localStorage.setItem(COLOR_STORAGE_KEY, color);
 
-                // Zmieniamy lekko ciemniejszy kolor dla chipów
+                
                 updateChipColor(color);
             });
 
@@ -188,7 +198,7 @@ const DEFAULT_COLOR = '#33ccff';
             featuresDiv.append('<h4>Features</h4>');
             featuresDiv.append(`
             <ul style="padding-left:20px;">
-                <li>Change layers opacity using sliders</li>
+                <li>Add opacity sliders for Geoportal layers</li>
                 <li>Custom theme color</li>
             </ul>
         `);
@@ -198,7 +208,6 @@ const DEFAULT_COLOR = '#33ccff';
         });
     }
 
-    // ---------- FUNKCJA POMOCNICZA DO CIEMNIEJSZEGO CHIPA ----------
     function updateChipColor(hexColor) {
         const rgb = hexToRgb(hexColor);
         if (rgb) {
@@ -295,5 +304,77 @@ const DEFAULT_COLOR = '#33ccff';
     restoreColorFromStorage();
     addStyles();
     waitForLayerAndUI();
+
+
+    // ---------- LOCAL VERSION ----------
+    const VERSION_STORAGE_KEY = "wme-addons-installed-version";
+    // ----
+
+    // ---- CHANGELOG ----
+
+    const CHANGELOG = [
+        "Add opacity sliders for Geoportal layers: ortofoto, place, drogi, podział adm., ...",
+        "Added new feature Update message",
+        "Minor UI fixes",
+        "Bug fixes"
+    ];
+
+    // ----
+
+    function checkLocalVersion() {
+        const storedVersion = localStorage.getItem(VERSION_STORAGE_KEY);
+
+        if (storedVersion !== SCRIPT_VERSION) {
+            showUpdatePopup();
+            localStorage.setItem(VERSION_STORAGE_KEY, SCRIPT_VERSION);
+        }
+    }
+
+    function showUpdatePopup() {
+        const popup = document.createElement("div");
+        popup.style.position = "fixed";
+        popup.style.top = "50%";
+        popup.style.left = "50%";
+        popup.style.transform = "translate(-50%, -50%)";
+        popup.style.width = "360px";
+        popup.style.background = "var(--background_default)";
+        popup.style.border = "1px solid var(--primary)";
+        popup.style.color = "var(--content_p1)";
+        popup.style.padding = "16px";
+        popup.style.zIndex = "9999999";
+        popup.style.boxShadow = "0 6px 18px rgba(0,0,0,0.35)";
+        popup.style.borderRadius = "10px";
+        popup.style.fontSize = "14px";
+
+        const changelogHTML = `
+            <ul style="margin:8px 0 0 18px; padding:0;">
+                ${CHANGELOG.map(item => `<li style="margin-bottom:4px;">${item}</li>`).join("")}
+            </ul>
+        `;
+
+        popup.innerHTML = `
+            <div style="position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:16px;" id="wme-addons-update-close">✕</div>
+
+            <div style="margin-bottom:8px;">
+                <h3 style="margin:0;">WME Addons Updated!</h3>
+                <div style="font-size:13px; opacity:0.8;">Version ${SCRIPT_VERSION}</div>
+            </div>
+
+            <div style="border-top:1px solid var(--primary); margin:10px 0;"></div>
+
+            <div>
+                <strong>What's new:</strong>
+                ${changelogHTML}
+            </div>
+        `;
+
+        document.body.appendChild(popup);
+
+        document.getElementById("wme-addons-update-close").onclick = () => {
+            popup.remove();
+        };
+    }
+
+    setTimeout(checkLocalVersion, 1500);
 
 })();
