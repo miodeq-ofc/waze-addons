@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.10
+// @version      1.1.11
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -19,7 +19,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.1.10';
+const SCRIPT_VERSION = '1.1.11';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -72,10 +72,10 @@ const DEFAULT_COLOR = '#33ccff';
             display: none;
         }
 
-        /* Border pod "by Miodeq" */
+
         #addons-settings > p {
             border-bottom: 1px solid var(--content_p1);
-            padding-bottom: 4px; /* opcjonalnie, żeby nie przylegało */
+            padding-bottom: 4px;
             margin-bottom: 10px;
         }
     `;
@@ -125,12 +125,11 @@ const DEFAULT_COLOR = '#33ccff';
             colorInput.on('input', () => {
                 const color = colorInput.val();
 
-                
+
                 document.documentElement.style.setProperty('--primary', color);
                 document.documentElement.style.setProperty('--primary_variant', color);
                 localStorage.setItem(COLOR_STORAGE_KEY, color);
 
-                
                 updateChipColor(color);
             });
 
@@ -156,6 +155,23 @@ const DEFAULT_COLOR = '#33ccff';
             const toolboxCheckbox = $('<wz-checkbox id="vertical-toolbox">Vertical ToolBox</wz-checkbox>');
             toolboxDiv.append(toolboxCheckbox);
             settingsDiv.append(toolboxDiv);
+
+            // --- Auto toggle ---
+            const autoDomDiv = $(`
+    <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+        <wz-checkbox id="auto-dom-toggle" style="flex:1;">
+            Auto House Numbers
+        </wz-checkbox>
+        <input type="number" id="auto-dom-timer"
+            min="100" max="10000" step="100" value="2000"
+            style="width:80px; font-size:13px;"
+            title="Delay in ms, co 100ms"> ms
+    </div>
+`);
+            toolboxDiv.append(autoDomDiv);
+
+
+
 
             toolboxCheckbox.on('click', () => {
                 const tb = document.getElementById('WMETB_NavBar');
@@ -200,6 +216,7 @@ const DEFAULT_COLOR = '#33ccff';
             <ul style="padding-left:20px;">
                 <li>Add opacity sliders for Geoportal layers</li>
                 <li>Custom theme color</li>
+                <li>Auto House nuber with own delay</li>
             </ul>
         `);
 
@@ -313,9 +330,9 @@ const DEFAULT_COLOR = '#33ccff';
     // ---- CHANGELOG ----
 
     const CHANGELOG = [
-        "Add opacity sliders for Geoportal layers: ortofoto, place, drogi, podział adm., ...",
-        "Added new feature Update message",
-        "Minor UI fixes",
+        "Added auto house numbers feature",
+        "Enabled automatic H key press with configurable delay",
+        "Add autoupdate by move always ON",
         "Bug fixes"
     ];
 
@@ -376,5 +393,130 @@ const DEFAULT_COLOR = '#33ccff';
     }
 
     setTimeout(checkLocalVersion, 1500);
+
+     // ---------- AUTO ENABLE FEED SYNC ----------
+    function forceEnableFeedSync() {
+
+        const checkbox = document.querySelector('#feed-sync-with-map');
+
+        if (!checkbox) return;
+
+        const isChecked =
+            checkbox.checked !== undefined
+                ? checkbox.checked
+                : checkbox.hasAttribute('checked');
+
+        if (!isChecked) {
+
+            console.log("WME Addons: Auto-enabling feed-sync-with-map");
+
+            checkbox.checked = true;
+            checkbox.setAttribute('checked', '');
+
+            checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    function observeFeedSync() {
+
+        const observer = new MutationObserver(() => {
+            forceEnableFeedSync();
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+
+        setTimeout(forceEnableFeedSync, 1500);
+    }
+
+
+    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+        setTimeout(observeFeedSync, 1000);
+    });
+
+
+    // ---------- Auto toggle Hause ----------
+    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+        console.log('SDK initialized — attaching auto DOM toggle with double selection check and timer input');
+
+        let domTimer = null;
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'h') {
+
+
+                const checkbox = document.getElementById('auto-dom-toggle');
+                if (!checkbox || !checkbox.checked) {
+
+                    return;
+                }
+
+                const firstCheck =
+                      W.selectionManager &&
+                      typeof W.selectionManager.hasSelectedFeatures === 'function' &&
+                      W.selectionManager.hasSelectedFeatures();
+
+                if (!firstCheck) {
+                    console.log('H pressed but nothing is selected — skip DOM toggle');
+                    return;
+                }
+
+                console.log('H pressed with selection — starting timer');
+
+                if (domTimer) clearTimeout(domTimer);
+
+                const timerInput = document.getElementById('auto-dom-timer');
+                let delay = 2000;
+                if (timerInput) {
+                    delay = parseInt(timerInput.value, 10);
+                    if (isNaN(delay) || delay < 100) delay = 100;
+                    if (delay > 10000) delay = 10000;
+
+                    delay = Math.round(delay / 100) * 100;
+                }
+
+
+                domTimer = setTimeout(() => {
+
+                    const secondCheck =
+                          W.selectionManager &&
+                          typeof W.selectionManager.hasSelectedFeatures === 'function' &&
+                          W.selectionManager.hasSelectedFeatures();
+
+                    if (!secondCheck) {
+                        console.log(`Segment not selected after ${delay}ms — DOM toggle cancelled`);
+                        domTimer = null;
+                        return;
+                    }
+
+
+                    const event = new KeyboardEvent('keydown', {
+                        key: 'h',
+                        code: 'KeyH',
+                        keyCode: 72,
+                        which: 72,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    document.dispatchEvent(event);
+                    console.log(`DOM toggled automatically after ${delay}ms with segment still selected`);
+                    domTimer = null;
+                }, delay);
+            }
+        });
+
+
+        document.addEventListener('mousedown', () => {
+            if (domTimer) {
+                clearTimeout(domTimer);
+                domTimer = null;
+                console.log('Timer cancelled by click');
+            }
+        });
+    });
 
 })();
