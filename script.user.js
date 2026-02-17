@@ -3,10 +3,12 @@
 // @version      1.1.12
 // @author       miodeq
 // @description  Addons for WME and other scripts
-// @match        https://*.waze.com/*/editor*
-// @match        https://*.waze.com/editor*
-// @match        https://*.waze.com/map-editor*
-// @match        https://*.waze.com/beta_editor*
+// @include          https://www.waze.com/editor*
+// @include          https://www.waze.com/*/editor*
+// @include          https://beta.waze.com/editor*
+// @include          https://beta.waze.com/*/editor*
+// @exclude          https://www.waze.com/user*
+// @exclude          https://www.waze.com/*/user*
 // @run-at       document-end
 // @grant        none
 // @ copyright   Miodeq, Mateusz Tomaszek 2026
