@@ -429,6 +429,9 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
         popup.style.boxShadow = "0 6px 18px rgba(0,0,0,0.35)";
         popup.style.borderRadius = "10px";
         popup.style.fontSize = "14px";
+        popup.style.webkitBoxShadow = "0px 0px 40px 5px rgba(0, 0, 0, 1)";
+        popup.style.mozBoxShadow = "0px 0px 40px 5px rgba(0, 0, 0, 1)";
+        popup.style.boxShadow = "0px 0px 40px 5px rgba(0, 0, 0, 1)";
 
         const changelogHTML = `
             <ul style="margin:8px 0 0 18px; padding:0;">
