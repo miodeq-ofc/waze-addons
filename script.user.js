@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.11
+// @version      1.1.12
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @match        https://*.waze.com/*/editor*
@@ -19,12 +19,21 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.1.11';
+const SCRIPT_VERSION = '1.1.12';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
 (function () {
     'use strict';
+
+    // --- Load Font Awesome if not present ---
+if (!document.querySelector('link[data-wme-addons-fa]')) {
+    const fa = document.createElement('link');
+    fa.rel = 'stylesheet';
+    fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
+    fa.setAttribute('data-wme-addons-fa', 'true');
+    document.head.appendChild(fa);
+}
 
     const LAYERS_WITH_OPACITY = [
         "Geoportal - ortofoto",
@@ -78,6 +87,62 @@ const DEFAULT_COLOR = '#33ccff';
             padding-bottom: 4px;
             margin-bottom: 10px;
         }
+
+.auto-dom-help {
+    position: relative;
+    font-size: 17px;
+    cursor: help;
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+}
+
+.auto-dom-help:hover {
+   color: var(--content_p1);
+}
+
+.auto-dom-help::after {
+    content: "Enable the checkbox, select a segment, and set the delay (ms). The script will automatically place a new house number at the specified interval instead of repeatedly pressing H. Works better with WME Rapid House Numbers.";
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+
+    background: var(--background_default);
+    color: var(--content_p1);
+    padding: 6px 8px;
+    border-radius: 6px;
+
+    font-family: sans-serif;
+    font-weight: normal;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: normal;
+
+    line-height: 1.4;
+    text-align: center;
+
+    white-space: normal;
+    width: max-content;
+    max-width: 230px;
+    overflow-wrap: break-word;
+    -webkit-box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
+    -moz-box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
+    box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
+
+    border: 1px solid var(--primary);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 9999;
+}
+
+.auto-dom-help:hover::after {
+    opacity: 1;
+}
+
+
+
     `;
         document.head.appendChild(style);
     }
@@ -162,6 +227,9 @@ const DEFAULT_COLOR = '#33ccff';
         <wz-checkbox id="auto-dom-toggle" style="flex:1;">
             Auto House Numbers
         </wz-checkbox>
+
+        <i class="fa fa-question-circle auto-dom-help"></i>
+
         <input type="number" id="auto-dom-timer"
             min="100" max="10000" step="100" value="2000"
             style="width:80px; font-size:13px;"
@@ -330,9 +398,8 @@ const DEFAULT_COLOR = '#33ccff';
     // ---- CHANGELOG ----
 
     const CHANGELOG = [
-        "Added auto house numbers feature",
-        "Enabled automatic H key press with configurable delay",
-        "Add autoupdate by move always ON",
+        "Improved auto house numbers feature",
+        "Added tooltip hint for auto house numbers",
         "Bug fixes"
     ];
 
