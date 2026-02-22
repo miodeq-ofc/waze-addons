@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.12
+// @version      1.1.13
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -21,7 +21,7 @@
 /* global $ */
 /* global getWmeSdk */
 
-const SCRIPT_VERSION = '1.1.12';
+const SCRIPT_VERSION = '1.1.13';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -397,15 +397,14 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
     const VERSION_STORAGE_KEY = "wme-addons-installed-version";
     // ----
 
-    // ---- CHANGELOG ----
+    // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Improved auto house numbers feature",
-        "Added tooltip hint for auto house numbers",
-        "Bug fixes"
+        "Repair auto house numbers feature",
+        "Other bug fixes"
     ];
 
-    // ----
+    // ---- --------------------------------------------------------------------------------------------------
 
     function checkLocalVersion() {
         const storedVersion = localStorage.getItem(VERSION_STORAGE_KEY);
@@ -511,84 +510,102 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
     });
 
 
-    // ---------- Auto toggle Hause ----------
-    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
-        console.log('SDK initialized — attaching auto DOM toggle with double selection check and timer input');
 
-        let domTimer = null;
+// ---------- Auto toggle House  ----------
+('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+    console.log('SDK initialized — attaching continuous auto DOM');
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'h') {
+    let autoDomInterval = null;
 
+    function isSegmentSelected() {
+        return (
+            W.selectionManager &&
+            typeof W.selectionManager.hasSelectedFeatures === 'function' &&
+            W.selectionManager.hasSelectedFeatures()
+        );
+    }
 
-                const checkbox = document.getElementById('auto-dom-toggle');
-                if (!checkbox || !checkbox.checked) {
+    function clickAddHouseNumber() {
+        const btn = document.querySelector(
+            "div#segment-edit-general wz-button i.w-icon-home"
+        );
+        if (!btn) return false;
+        btn.closest("wz-button")?.click();
+        return true;
+    }
 
-                    return;
-                }
-
-                const firstCheck =
-                      W.selectionManager &&
-                      typeof W.selectionManager.hasSelectedFeatures === 'function' &&
-                      W.selectionManager.hasSelectedFeatures();
-
-                if (!firstCheck) {
-                    console.log('H pressed but nothing is selected — skip DOM toggle');
-                    return;
-                }
-
-                console.log('H pressed with selection — starting timer');
-
-                if (domTimer) clearTimeout(domTimer);
-
-                const timerInput = document.getElementById('auto-dom-timer');
-                let delay = 2000;
-                if (timerInput) {
-                    delay = parseInt(timerInput.value, 10);
-                    if (isNaN(delay) || delay < 100) delay = 100;
-                    if (delay > 10000) delay = 10000;
-
-                    delay = Math.round(delay / 100) * 100;
-                }
-
-
-                domTimer = setTimeout(() => {
-
-                    const secondCheck =
-                          W.selectionManager &&
-                          typeof W.selectionManager.hasSelectedFeatures === 'function' &&
-                          W.selectionManager.hasSelectedFeatures();
-
-                    if (!secondCheck) {
-                        console.log(`Segment not selected after ${delay}ms — DOM toggle cancelled`);
-                        domTimer = null;
-                        return;
-                    }
-
-
-                    const event = new KeyboardEvent('keydown', {
-                        key: 'h',
-                        code: 'KeyH',
-                        keyCode: 72,
-                        which: 72,
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    document.dispatchEvent(event);
-                    console.log(`DOM toggled automatically after ${delay}ms with segment still selected`);
-                    domTimer = null;
-                }, delay);
+    function waitForRHNInputAndFocus(callback, timeout = 800) {
+        const start = Date.now();
+        function check() {
+            const nextInput = document.querySelector("input.rapidHN.next");
+            if (nextInput) {
+                setTimeout(callback, 50);
+                return;
             }
-        });
-
-
-        document.addEventListener('mousedown', () => {
-            if (domTimer) {
-                clearTimeout(domTimer);
-                domTimer = null;
-                console.log('Timer cancelled by click');
+            if (Date.now() - start > timeout) {
+                callback();
+                return;
             }
-        });
+            requestAnimationFrame(check);
+        }
+        check();
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() !== 'h') return;
+
+        const checkbox = document.getElementById('auto-dom-toggle');
+        if (!checkbox || !checkbox.checked) return;
+
+        if (!isSegmentSelected()) {
+            console.log('Auto DOM: no segment selected');
+            return;
+        }
+
+
+        if (autoDomInterval) return;
+
+        const timerInput = document.getElementById('auto-dom-timer');
+        let delay = 2000;
+        if (timerInput) {
+            delay = parseInt(timerInput.value, 10);
+            if (isNaN(delay) || delay < 100) delay = 100;
+            if (delay > 10000) delay = 10000;
+            delay = Math.round(delay / 100) * 100;
+        }
+
+        autoDomInterval = setInterval(() => {
+            if (!isSegmentSelected()) {
+                clearInterval(autoDomInterval);
+                autoDomInterval = null;
+                console.log('Auto DOM stopped — segment deselected');
+                return;
+            }
+
+            waitForRHNInputAndFocus(() => {
+                const clicked = clickAddHouseNumber();
+                if (!clicked) console.log("Auto DOM: add button not found");
+            });
+
+        }, delay);
     });
+
+
+    document.addEventListener('mousedown', () => {
+        if (autoDomInterval) {
+            clearInterval(autoDomInterval);
+            autoDomInterval = null;
+            console.log('Auto DOM stopped by click');
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === "Escape" && autoDomInterval) {
+            clearInterval(autoDomInterval);
+            autoDomInterval = null;
+            console.log('Auto DOM stopped by ESC');
+        }
+    });
+});
 
 })();
