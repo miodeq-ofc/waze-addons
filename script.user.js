@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.13
+// @version      1.1.14
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -20,8 +20,9 @@
 /* global W */
 /* global $ */
 /* global getWmeSdk */
+/* global OpenLayers */
 
-const SCRIPT_VERSION = '1.1.13';
+const SCRIPT_VERSION = '1.1.14';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -215,30 +216,135 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
             colorDiv.append(colorRow);
             settingsDiv.append(colorDiv);
 
-            // --- Vertical Toolbox ---
-            settingsDiv.append('<h3>Settings</h3>');
+// --- Vertical Toolbox ---
+settingsDiv.append('<h3>Settings</h3>');
+const toolboxDiv = $('<div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>');
 
-            const toolboxDiv = $('<div style="margin-top:10px;"></div>');
-            const toolboxCheckbox = $('<wz-checkbox id="vertical-toolbox">Vertical ToolBox</wz-checkbox>');
-            toolboxDiv.append(toolboxCheckbox);
-            settingsDiv.append(toolboxDiv);
+// Vertical Toolbox checkbox
+const toolboxCheckbox = $('<wz-checkbox id="vertical-toolbox">Vertical ToolBox</wz-checkbox>');
+toolboxDiv.append(toolboxCheckbox);
 
-            // --- Auto toggle ---
-            const autoDomDiv = $(`
-    <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
-        <wz-checkbox id="auto-dom-toggle" style="flex:1;">
-            Auto House Numbers
-        </wz-checkbox>
+// OPP Overlay checkbox
+const oppOverlayCheckbox = $('<wz-checkbox id="opp-overlay-toggle">Show Average Speed Camera</wz-checkbox>');
+toolboxDiv.append(oppOverlayCheckbox);
 
-        <i class="fa fa-question-circle auto-dom-help"></i>
-
-        <input type="number" id="auto-dom-timer"
-            min="100" max="10000" step="100" value="2000"
-            style="width:80px; font-size:13px;"
-            title="Delay in ms, co 100ms"> ms
-    </div>
+// Auto House Numbers row
+const autoDomDiv = $(`
+<div style="display:flex; align-items:center; gap:6px;">
+    <wz-checkbox id="auto-dom-toggle" style="flex:1;">Auto House Numbers</wz-checkbox>
+    <i class="fa fa-question-circle auto-dom-help"></i>
+    <input type="number" id="auto-dom-timer" min="100" max="10000" step="100" value="2000"
+        style="width:80px; font-size:13px;" title="Delay in ms"> ms
+</div>
 `);
-            toolboxDiv.append(autoDomDiv);
+toolboxDiv.append(autoDomDiv);
+
+
+settingsDiv.append(toolboxDiv);
+
+
+const OPP_STORAGE_KEY = 'wme-opp-overlay-enabled';
+let OPP_ENABLED = localStorage.getItem(OPP_STORAGE_KEY) === 'true';
+oppOverlayCheckbox.prop('checked', OPP_ENABLED);
+
+// ---------- OPP Overlay Function ----------
+function initOPPOverlay() {
+    if (!window.W || !W.map || !W.model) {
+        setTimeout(initOPPOverlay, 500);
+        return;
+    }
+
+    if (!OPP_ENABLED) {
+        window.OPP_LAYER_INSTANCE?.removeAllFeatures();
+        return;
+    }
+
+    if (!window.OPP_LAYER_INSTANCE) {
+        window.OPP_LAYER_INSTANCE = new OpenLayers.Layer.Vector("OPP Overlay Layer");
+        W.map.addLayer(window.OPP_LAYER_INSTANCE);
+    }
+
+    const layer = window.OPP_LAYER_INSTANCE;
+
+    function scan() {
+        if (!layer || !OPP_ENABLED) {
+            layer?.removeAllFeatures();
+            return;
+        }
+
+        layer.removeAllFeatures();
+
+        const zoom = W.map.getZoom();
+        const iconSize = zoom >= 17 ? 50 : 40;
+
+        const segments = Object.values(W.model.segments.objects);
+
+        segments.forEach(seg => {
+            const geom = seg.getOLGeometry();
+            if (!geom) return;
+            const points = geom.getVertices();
+            const attr = seg.attributes;
+
+            const isOPP =
+                ((attr.fwdFlags === 1 || attr.fwdFlags === 5) && attr.fwdDirection) ||
+                ((attr.revFlags === 1 || attr.revFlags === 5) && attr.revDirection);
+            if (!isOPP) return;
+
+            // LINES OPP
+            const lineFeature = new OpenLayers.Feature.Vector(
+                new OpenLayers.Geometry.LineString(points),
+                null,
+                { strokeColor: "#0000FF", strokeWidth: 15, strokeOpacity: 0.4, graphicZIndex: 3000 }
+            );
+            layer.addFeatures([lineFeature]);
+
+            // IMG  OPP
+            const interval = 10;
+            for (let i = 0; i < points.length; i += interval) {
+                const pointFeature = new OpenLayers.Feature.Vector(
+                    new OpenLayers.Geometry.Point(points[i].x, points[i].y),
+                    null,
+                    {
+                        externalGraphic: "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/opp.png",
+                        graphicWidth: iconSize,
+                        graphicHeight: iconSize,
+                        graphicXOffset: -iconSize/2,
+                        graphicYOffset: -iconSize/2,
+                        graphicOpacity: 1,
+                        graphicZIndex: 9999999999
+                    }
+                );
+                layer.addFeatures([pointFeature]);
+            }
+        });
+    }
+
+    scan();
+    W.map.events.register("moveend", null, scan);
+    W.map.events.register("zoomend", null, scan);
+}
+
+// ---------- Checkbox Event ----------
+oppOverlayCheckbox.on('change', () => {
+    OPP_ENABLED = oppOverlayCheckbox.prop('checked');
+    localStorage.setItem(OPP_STORAGE_KEY, OPP_ENABLED ? 'true' : 'false');
+
+    if (OPP_ENABLED) {
+        ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+            initOPPOverlay();
+        });
+    } else {
+        window.OPP_LAYER_INSTANCE?.removeAllFeatures();
+    }
+});
+
+// ---------- Auto enable on load ----------
+if (OPP_ENABLED) {
+    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+        initOPPOverlay();
+    });
+}
+
 
 
 
@@ -400,7 +506,7 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
     // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Repair auto house numbers feature",
+        "Added checkbox in script settings to show Average Speed Camera",
         "Other bug fixes"
     ];
 
