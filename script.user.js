@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.14
+// @version      1.1.15
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -22,7 +22,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.1.14';
+const SCRIPT_VERSION = '1.1.15';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -42,6 +42,7 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
         "Geoportal - ortofoto",
         "Geoportal - ortofotomapy o wysokiej rozdzielczości",
         "Geoportal - OSM",
+        "Geoportal - ortofoto high res",
         "Geoportal - ulice",
         "Geoportal - place",
         "Geoportal - miejsce",
@@ -90,6 +91,20 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
             padding-bottom: 4px;
             margin-bottom: 10px;
         }
+
+        .counter--ZcIEX {
+    background: var(--wz-chip-checked-background-color) !important;
+}
+.list-item-card-icon {
+    background: var(--primary) !important;
+    }
+.titleWithIcon--Bxgz8>div:first-child {
+     background: var(--primary) !important;
+}
+
+wz-user-box wz-caption {
+    color: var(--primary) !important;
+}
 
 .auto-dom-help {
     position: relative;
@@ -505,10 +520,10 @@ if (OPP_ENABLED) {
 
     // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
-    const CHANGELOG = [
-        "Added checkbox in script settings to show Average Speed Camera",
-        "Other bug fixes"
-    ];
+                                                        const CHANGELOG = [
+                                                            "Fixed missing custom color settings",
+                                                            "Other bug fixes"
+                                                        ];
 
     // ---- --------------------------------------------------------------------------------------------------
 
@@ -632,11 +647,25 @@ if (OPP_ENABLED) {
     }
 
     function clickAddHouseNumber() {
+
         const btn = document.querySelector(
-            "div#segment-edit-general wz-button i.w-icon-home"
+            '#segment-edit-general wz-button i.w-icon-home'
         );
-        if (!btn) return false;
-        btn.closest("wz-button")?.click();
+
+        if (btn) {
+            btn.closest("wz-button").click();
+            return true;
+        }
+
+        // fallback — użyj skrótu klawiszowego WME
+        const event = new KeyboardEvent("keydown", {
+            key: "h",
+            code: "KeyH",
+            bubbles: true
+        });
+
+        document.dispatchEvent(event);
+
         return true;
     }
 
@@ -669,7 +698,10 @@ if (OPP_ENABLED) {
         }
 
 
-        if (autoDomInterval) return;
+        if (autoDomInterval) {
+            clearInterval(autoDomInterval);
+            autoDomInterval = null;
+        }
 
         const timerInput = document.getElementById('auto-dom-timer');
         let delay = 2000;
@@ -697,13 +729,28 @@ if (OPP_ENABLED) {
     });
 
 
-    document.addEventListener('mousedown', () => {
-        if (autoDomInterval) {
-            clearInterval(autoDomInterval);
-            autoDomInterval = null;
-            console.log('Auto DOM stopped by click');
-        }
-    });
+function stopAutoDom(reason) {
+    if (autoDomInterval) {
+        clearInterval(autoDomInterval);
+        autoDomInterval = null;
+
+        console.log('Auto DOM stopped:', reason);
+
+        // reset focus / RHN state
+        const active = document.activeElement;
+        if (active) active.blur();
+    }
+}
+
+document.addEventListener('mousedown', () => {
+    stopAutoDom('mouse click');
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === "Escape") {
+        stopAutoDom('ESC');
+    }
+});
 
     document.addEventListener('keydown', (e) => {
         if (e.key === "Escape" && autoDomInterval) {
