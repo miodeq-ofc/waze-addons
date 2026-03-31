@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.15
+// @version      1.1.16
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -22,7 +22,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.1.15';
+const SCRIPT_VERSION = '1.1.16';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -96,8 +96,18 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
     background: var(--wz-chip-checked-background-color) !important;
 }
 .list-item-card-icon {
-    background: var(--primary) !important;
+    background: var(--primary);
     }
+.list-item-card-icon-yellow-500
+{
+    background-color: #ffc400;
+}
+.list-item-card-icon-orange-500 {
+    background-color: #fd804b;
+}
+.list-item-card-icon-red-500 {
+    background-color: #ff5252;
+}
 .titleWithIcon--Bxgz8>div:first-child {
      background: var(--primary) !important;
 }
@@ -521,7 +531,7 @@ if (OPP_ENABLED) {
     // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
                                                         const CHANGELOG = [
-                                                            "Fixed missing custom color settings",
+                                                            "Repair custom color settings on icons",
                                                             "Other bug fixes"
                                                         ];
 
