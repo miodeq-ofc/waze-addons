@@ -19,6 +19,8 @@
 ### Aktualizacje
 Skrypty są automatycznie aktualizowane.
 
+Mój profil Waze: [Miodeq](https://www.waze.com/pl/user/editor/miodeq)
+
 
 
 ## EN – English
@@ -37,3 +39,5 @@ Skrypty są automatycznie aktualizowane.
 
 ### Updates
 Scripts are automatically updated.
+
+My Waze profile: [Miodeq](https://www.waze.com/pl/user/editor/miodeq)
