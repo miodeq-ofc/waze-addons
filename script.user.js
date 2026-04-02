@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.1.16
+// @version      1.2.1
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -22,7 +22,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.1.16';
+const SCRIPT_VERSION = '1.2.1';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -95,9 +95,11 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
         .counter--ZcIEX {
     background: var(--wz-chip-checked-background-color) !important;
 }
+/*
 .list-item-card-icon {
     background: var(--primary);
     }
+    */
 .list-item-card-icon-yellow-500
 {
     background-color: #ffc400;
@@ -169,7 +171,57 @@ wz-user-box wz-caption {
     opacity: 1;
 }
 
+.lock-help {
+    position: relative;
+    font-size: 17px;
+    cursor: help;
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    margin: 0px 0px 3px 7px;
+}
 
+.lock-help:hover {
+   color: var(--content_p1);
+}
+
+.lock-help::after {
+    content: "Shows segments with lower lock level than required for the current road type.";
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+
+    background: var(--background_default);
+    color: var(--content_p1);
+    padding: 6px 8px;
+    border-radius: 6px;
+
+    font-family: sans-serif;
+    font-weight: normal;
+    font-size: 12px;
+
+    line-height: 1.4;
+    text-align: center;
+
+    white-space: normal;
+    width: max-content;
+    max-width: 160px;
+    overflow-wrap: break-word;
+    -webkit-box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
+    -moz-box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
+    box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
+
+    border: 1px solid var(--primary);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 9999;
+}
+
+.lock-help:hover::after {
+    opacity: 1;
+}
 
     `;
         document.head.appendChild(style);
@@ -253,6 +305,10 @@ toolboxDiv.append(toolboxCheckbox);
 const oppOverlayCheckbox = $('<wz-checkbox id="opp-overlay-toggle">Show Average Speed Camera</wz-checkbox>');
 toolboxDiv.append(oppOverlayCheckbox);
 
+// LOCK Overlay checkbox
+const lockOverlayCheckbox = $('<wz-checkbox id="lock-overlay-toggle">Show Low Locks Segments <i class="fa fa-question-circle lock-help"></i></wz-checkbox>');
+toolboxDiv.append(lockOverlayCheckbox);
+
 // Auto House Numbers row
 const autoDomDiv = $(`
 <div style="display:flex; align-items:center; gap:6px;">
@@ -270,7 +326,10 @@ settingsDiv.append(toolboxDiv);
 
 const OPP_STORAGE_KEY = 'wme-opp-overlay-enabled';
 let OPP_ENABLED = localStorage.getItem(OPP_STORAGE_KEY) === 'true';
+const LOCK_STORAGE_KEY = 'wme-lock-overlay-enabled';
+let LOCK_ENABLED = localStorage.getItem(LOCK_STORAGE_KEY) === 'true';
 oppOverlayCheckbox.prop('checked', OPP_ENABLED);
+lockOverlayCheckbox.prop('checked', LOCK_ENABLED);
 
 // ---------- OPP Overlay Function ----------
 function initOPPOverlay() {
@@ -349,6 +408,134 @@ function initOPPOverlay() {
     W.map.events.register("zoomend", null, scan);
 }
 
+// ---------- LOCK Overlay Function ----------
+function initLockOverlay() {
+    if (!window.W || !W.map || !W.model) {
+        setTimeout(initLockOverlay, 500);
+        return;
+    }
+
+    if (!LOCK_ENABLED) {
+        window.LOCK_LAYER_INSTANCE?.removeAllFeatures();
+        return;
+    }
+
+    if (!window.LOCK_LAYER_INSTANCE) {
+        window.LOCK_LAYER_INSTANCE = new OpenLayers.Layer.Vector("LOCK Overlay Layer");
+        W.map.addLayer(window.LOCK_LAYER_INSTANCE);
+    }
+
+    const layer = window.LOCK_LAYER_INSTANCE;
+
+    function shouldHighlight(seg) {
+        const attr = seg.attributes;
+
+        function getEffectiveLock(attr) {
+            if (attr.lockRank !== null && attr.lockRank !== undefined) {
+                return attr.lockRank;
+            }
+
+            const rank = attr.rank ?? 0;
+
+            if (rank === 0) return 0;
+            if (rank === 1) return 1;
+            if (rank === 2) return 2;
+
+            return 0;
+        }
+
+        const lock = getEffectiveLock(attr);
+        const roadType = attr.roadType;
+
+        // Główna
+        if (roadType === 2) return lock < 1;
+
+        // Wojewódzka
+        if (roadType === 7) return lock < 3;
+
+        // Krajowa
+        if (roadType === 6) return lock < 4;
+
+        // Zjazd
+        if (roadType === 4) return lock < 2;
+
+        // Autostrada / ekspresowa
+        if (roadType === 3) {
+            const isToll = attr.fwdToll || attr.revToll;
+
+            if (isToll) return lock < 5;
+            return lock < 4;
+        }
+
+        // Tor
+        if (roadType === 18) return lock < 2;
+
+        return false;
+    }
+
+    function scan() {
+        if (!layer || !LOCK_ENABLED) {
+            layer?.removeAllFeatures();
+            return;
+        }
+
+        layer.removeAllFeatures();
+
+        const segments = Object.values(W.model.segments.objects);
+
+        segments.forEach(seg => {
+            const geom = seg.getOLGeometry();
+            if (!geom) return;
+
+            if (!shouldHighlight(seg)) return;
+
+            const points = geom.getVertices();
+
+            const lineFeature = new OpenLayers.Feature.Vector(
+                new OpenLayers.Geometry.LineString(points),
+                null,
+                {
+                    strokeColor: "#ff0000",
+                    strokeWidth: 15,
+                    strokeOpacity: 0.4,
+                    graphicZIndex: 3000
+                }
+            );
+            layer.addFeatures([lineFeature]);
+
+            // 🖼️ IKONY
+            const zoom = W.map.getZoom();
+            const iconSize = zoom >= 17 ? 50 : 40;
+
+            if (points.length > 0) {
+                const midIndex = Math.floor(points.length / 2);
+                const midPoint = points[midIndex];
+
+                const pointFeature = new OpenLayers.Feature.Vector(
+                    new OpenLayers.Geometry.Point(midPoint.x, midPoint.y),
+                    null,
+                    {
+                        externalGraphic: "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/lock.png",
+                        graphicWidth: iconSize,
+                        graphicHeight: iconSize,
+                        graphicXOffset: -iconSize / 2,
+                        graphicYOffset: -iconSize / 2,
+                        graphicOpacity: 0.9,
+                        graphicZIndex: 99999999999999999999999
+                    }
+                );
+
+                layer.addFeatures([pointFeature]);
+            }
+
+        });
+    }
+
+    scan();
+    W.map.events.register("moveend", null, scan);
+    W.map.events.register("zoomend", null, scan);
+}
+
 // ---------- Checkbox Event ----------
 oppOverlayCheckbox.on('change', () => {
     OPP_ENABLED = oppOverlayCheckbox.prop('checked');
@@ -363,13 +550,31 @@ oppOverlayCheckbox.on('change', () => {
     }
 });
 
+
+lockOverlayCheckbox.on('change', () => {
+    LOCK_ENABLED = lockOverlayCheckbox.prop('checked');
+    localStorage.setItem(LOCK_STORAGE_KEY, LOCK_ENABLED ? 'true' : 'false');
+
+    if (LOCK_ENABLED) {
+        ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+            initLockOverlay();
+        });
+    } else {
+        window.LOCK_LAYER_INSTANCE?.removeAllFeatures();
+    }
+});
+
 // ---------- Auto enable on load ----------
 if (OPP_ENABLED) {
     ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
         initOPPOverlay();
     });
 }
-
+if (LOCK_ENABLED) {
+    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+        initLockOverlay();
+    });
+}
 
 
 
@@ -418,6 +623,8 @@ if (OPP_ENABLED) {
                 <li>Add opacity sliders for Geoportal layers</li>
                 <li>Custom theme color</li>
                 <li>Auto House nuber with own delay</li>
+                <li>Lower Lock Segments Highlighter</li>
+                <li>Show segments with Speed Camera</li>
             </ul>
         `);
 
@@ -531,6 +738,7 @@ if (OPP_ENABLED) {
     // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
                                                         const CHANGELOG = [
+                                                            "Added new feature! Highlight segments with low lock level (open script settings)",
                                                             "Repair custom color settings on icons",
                                                             "Other bug fixes"
                                                         ];
@@ -667,7 +875,7 @@ if (OPP_ENABLED) {
             return true;
         }
 
-        // fallback — użyj skrótu klawiszowego WME
+
         const event = new KeyboardEvent("keydown", {
             key: "h",
             code: "KeyH",
