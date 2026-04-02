@@ -186,7 +186,7 @@ wz-user-box wz-caption {
 }
 
 .lock-help::after {
-    content: "Shows segments with lower lock level than required for the current road type.";
+    content: "Shows segments with lower lock level than required for the current road type. Sync with Poland segments Locks Level";
     position: absolute;
     bottom: 125%;
     left: 50%;
