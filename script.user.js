@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.2.1
+// @version      1.2.2
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -22,7 +22,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.2.1';
+const SCRIPT_VERSION = '1.2.2';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#33ccff';
 
@@ -117,6 +117,10 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
 wz-user-box wz-caption {
     color: var(--primary) !important;
 }
+.container--wzXTu
+{
+    display: none !important;
+}
 
 .auto-dom-help {
     position: relative;
@@ -186,7 +190,7 @@ wz-user-box wz-caption {
 }
 
 .lock-help::after {
-    content: "Shows segments with lower lock level than required for the current road type. Sync with Poland segments Locks Level";
+    content: "Shows segments with lower lock level than required for the current road type. Sync with Poland segments Locks Level and click the button next to the Save button to fix all visible on the map.";
     position: absolute;
     bottom: 125%;
     left: 50%;
@@ -225,6 +229,52 @@ wz-user-box wz-caption {
 
     `;
         document.head.appendChild(style);
+    }
+
+    function shouldHighlight(seg) {
+        const attr = seg.attributes;
+
+        function getEffectiveLock(attr) {
+            if (attr.lockRank !== null && attr.lockRank !== undefined) {
+                return attr.lockRank;
+            }
+
+            const rank = attr.rank ?? 0;
+
+            if (rank === 0) return 0;
+            if (rank === 1) return 1;
+            if (rank === 2) return 2;
+
+            return 0;
+        }
+
+        const lock = attr.lockRank ?? getEffectiveLock(attr);
+        const roadType = attr.roadType;
+
+        // Główna
+        if (roadType === 2) return lock < 1;
+
+        // Wojewódzka
+        if (roadType === 7) return lock < 3;
+
+        // Krajowa
+        if (roadType === 6) return lock < 4;
+
+        // Zjazd
+        if (roadType === 4) return lock < 2;
+
+        // Autostrada / ekspresowa
+        if (roadType === 3) {
+            const isToll = attr.fwdToll || attr.revToll;
+
+            if (isToll) return lock < 5;
+            return lock < 4;
+        }
+
+        // Tor
+        if (roadType === 18) return lock < 2;
+
+        return false;
     }
 
     // ---------- SETTINGS TAB ----------
@@ -427,52 +477,6 @@ function initLockOverlay() {
 
     const layer = window.LOCK_LAYER_INSTANCE;
 
-    function shouldHighlight(seg) {
-        const attr = seg.attributes;
-
-        function getEffectiveLock(attr) {
-            if (attr.lockRank !== null && attr.lockRank !== undefined) {
-                return attr.lockRank;
-            }
-
-            const rank = attr.rank ?? 0;
-
-            if (rank === 0) return 0;
-            if (rank === 1) return 1;
-            if (rank === 2) return 2;
-
-            return 0;
-        }
-
-        const lock = getEffectiveLock(attr);
-        const roadType = attr.roadType;
-
-        // Główna
-        if (roadType === 2) return lock < 1;
-
-        // Wojewódzka
-        if (roadType === 7) return lock < 3;
-
-        // Krajowa
-        if (roadType === 6) return lock < 4;
-
-        // Zjazd
-        if (roadType === 4) return lock < 2;
-
-        // Autostrada / ekspresowa
-        if (roadType === 3) {
-            const isToll = attr.fwdToll || attr.revToll;
-
-            if (isToll) return lock < 5;
-            return lock < 4;
-        }
-
-        // Tor
-        if (roadType === 18) return lock < 2;
-
-        return false;
-    }
-
     function scan() {
         if (!layer || !LOCK_ENABLED) {
             layer?.removeAllFeatures();
@@ -503,7 +507,7 @@ function initLockOverlay() {
             );
             layer.addFeatures([lineFeature]);
 
-            // 🖼️ IKONY
+            // ICON
             const zoom = W.map.getZoom();
             const iconSize = zoom >= 17 ? 50 : 40;
 
@@ -558,9 +562,13 @@ lockOverlayCheckbox.on('change', () => {
     if (LOCK_ENABLED) {
         ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
             initLockOverlay();
+
+            setTimeout(addLockFixButton, 300);
         });
     } else {
         window.LOCK_LAYER_INSTANCE?.removeAllFeatures();
+
+        removeLockFixButton();
     }
 });
 
@@ -573,6 +581,8 @@ if (OPP_ENABLED) {
 if (LOCK_ENABLED) {
     ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
         initLockOverlay();
+
+        setTimeout(addLockFixButton, 500);
     });
 }
 
@@ -623,7 +633,7 @@ if (LOCK_ENABLED) {
                 <li>Add opacity sliders for Geoportal layers</li>
                 <li>Custom theme color</li>
                 <li>Auto House nuber with own delay</li>
-                <li>Lower Lock Segments Highlighter</li>
+                <li>Lower Lock Segments Highlighter – fix them in one click</li>
                 <li>Show segments with Speed Camera</li>
             </ul>
         `);
@@ -653,6 +663,7 @@ if (LOCK_ENABLED) {
     }
 
     // ---------- OPACITY SLIDERS ----------
+
     function waitForLayerAndUI() {
         if (!window.W || !W.map || !document.querySelector('#layer-switcher-region .menu .list-unstyled')) {
             return setTimeout(waitForLayerAndUI, 1000);
@@ -738,8 +749,8 @@ if (LOCK_ENABLED) {
     // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
                                                         const CHANGELOG = [
-                                                            "Added new feature! Highlight segments with low lock level (open script settings)",
-                                                            "Repair custom color settings on icons",
+                                                            "Added a new button to fix all lower lock levels in one click",
+                                                            "Upgraded lower locks highlighter",
                                                             "Other bug fixes"
                                                         ];
 
@@ -978,5 +989,150 @@ document.addEventListener('keydown', (e) => {
         }
     });
 });
+// ---------- LOCK FIX TOOL (Toolbox style) ----------
 
+// określenie wymaganej blokady (ta sama logika co highlight)
+function getRequiredLock(attr) {
+    const roadType = attr.roadType;
+
+    if (roadType === 2) return 1; // główna
+    if (roadType === 7) return 3; // wojewódzka
+    if (roadType === 6) return 4; // krajowa
+    if (roadType === 4) return 2; // zjazd
+
+    if (roadType === 3) {
+        const isToll = attr.fwdToll || attr.revToll;
+        return isToll ? 5 : 4;
+    }
+
+    if (roadType === 18) return 2;
+
+    return null;
+}
+
+// główna akcja (jak toolbox)
+async function runLockFix() {
+
+    if (!window.W || !W.model) {
+        alert("WME not ready");
+        return;
+    }
+
+    const segments = Object.values(W.model.segments.objects);
+
+    const groups = {};
+
+    segments.forEach(seg => {
+
+        const required = getRequiredLock(seg.attributes);
+        const current = seg.attributes.lockRank ?? 0;
+
+        if (required === null) return;
+        if (current >= required) return;
+
+        if (!groups[required]) {
+            groups[required] = [];
+        }
+
+        groups[required].push(seg);
+    });
+
+    const levels = Object.keys(groups).map(Number).sort((a,b) => a-b);
+
+    if (levels.length === 0) {
+        alert("Nothing to fix");
+        return;
+    }
+
+    let i = 0;
+
+    function next() {
+
+        if (i >= levels.length) {
+            // alert("Done — remember to SAVE");
+            return;
+        }
+
+        const level = levels[i];
+        const segs = groups[level];
+
+
+        W.selectionManager.clearSelectedModels?.();
+        W.selectionManager.setSelectedModels(segs);
+
+        setTimeout(() => {
+
+
+            const chip = document.querySelector(
+                `wz-checkable-chip#lockRank-${level}`
+            );
+
+            if (!chip) {
+                console.warn("Missing chip:", level);
+                i++;
+                return next();
+            }
+
+            chip.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true
+            }));
+
+            i++;
+            setTimeout(next, 300);
+
+        }, 300);
+    }
+
+    next();
+}
+
+
+function addLockFixButton() {
+
+    const toolbar = document.querySelector('.secondary-toolbar');
+    if (!toolbar) return;
+
+    if (document.getElementById('fix-locks-btn')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'fix-locks-btn';
+
+    // usuń tekst
+    btn.innerText = '';
+
+    // styl (opcjonalnie żeby wyglądało jak ikonka)
+    btn.style.width = '40px';
+    btn.style.height = '40px';
+    btn.style.padding = '0';
+    btn.style.border = 'none';
+    btn.style.background = 'transparent';
+
+    // obrazek
+    const img = document.createElement('img');
+    img.src = 'https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/lockbtn.png';
+    img.style.width = '90%';
+    img.style.height = '90%';
+
+    btn.appendChild(img);
+
+    btn.onclick = runLockFix;
+
+
+    const children = Array.from(toolbar.children);
+
+
+    const insertIndex = Math.max(children.length - 3, 0);
+
+
+    const referenceNode = children[insertIndex];
+
+    toolbar.insertBefore(btn, referenceNode);
+}
+
+
+function removeLockFixButton() {
+    const btn = document.getElementById('fix-locks-btn');
+    if (btn) btn.remove();
+}
 })();
