@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.2.2
+// @version      1.2.3
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -22,9 +22,9 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.2.2';
+const SCRIPT_VERSION = '1.2.3';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
-const DEFAULT_COLOR = '#33ccff';
+const DEFAULT_COLOR = '#0099ff';
 
 (function () {
     'use strict';
@@ -60,6 +60,12 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
             root.style.setProperty('--primary', DEFAULT_COLOR);
             root.style.setProperty('--primary_variant', DEFAULT_COLOR);
         }
+
+        updateChipColor(
+            getComputedStyle(root)
+            .getPropertyValue('--primary')
+            .trim() || DEFAULT_COLOR
+        );
     }
 
     function restoreColorFromStorage() {
@@ -749,8 +755,7 @@ if (LOCK_ENABLED) {
     // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
                                                         const CHANGELOG = [
-                                                            "Added a new button to fix all lower lock levels in one click",
-                                                            "Upgraded lower locks highlighter",
+                                                            "Fixed default colors and several color-related bugs",
                                                             "Other bug fixes"
                                                         ];
 
