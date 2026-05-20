@@ -350,7 +350,7 @@ wz-user-box wz-caption {
             settingsDiv.append(colorDiv);
 
 // --- Vertical Toolbox ---
-settingsDiv.append('<h3>Settings</h3>');
+settingsDiv.append('<h4>Settings</h4>');
 const toolboxDiv = $('<div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>');
 
 // Vertical Toolbox checkbox
