@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WME Addons
-// @version      1.2.3
+// @version      1.2.4
 // @author       miodeq
 // @description  Addons for WME and other scripts
 // @include          https://www.waze.com/editor*
@@ -22,7 +22,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.2.3';
+const SCRIPT_VERSION = '1.2.4';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 
@@ -38,18 +38,6 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
     document.head.appendChild(fa);
 }
 
-    const LAYERS_WITH_OPACITY = [
-        "Geoportal - ortofoto",
-        "Geoportal - ortofotomapy o wysokiej rozdzielczości",
-        "Geoportal - OSM",
-        "Geoportal - ortofoto high res",
-        "Geoportal - ulice",
-        "Geoportal - place",
-        "Geoportal - miejsce",
-        "Geoportal - adresy, place i ulice w jednym",
-        "Geoportal - drogi",
-        "Geoportal - podział adm"
-    ];
     let wmeSDK;
 
     // ---------- CSS VARIABLES ----------
@@ -77,20 +65,20 @@ if (!document.querySelector('link[data-wme-addons-fa]')) {
         }
     }
 
+
+    // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
+
+                                                        const CHANGELOG = [
+                                                            "Geoportal addons has been removed because it is no longer supported",
+                                                            "Other bug fixes"
+                                                        ];
+
+    // ---- --------------------------------------------------------------------------------------------------
+
     // ---------- STYLES ----------
     function addStyles() {
         const style = document.createElement("style");
         style.textContent = `
-        .geoportal-opacity-addon {
-            width: 100%;
-            margin-top: 4px;
-            accent-color: var(--primary);
-        }
-
-        .geoportal-opacity-addon.hidden {
-            display: none;
-        }
-
 
         #addons-settings > p {
             border-bottom: 1px solid var(--content_p1);
@@ -636,7 +624,6 @@ if (LOCK_ENABLED) {
             featuresDiv.append('<h4>Features</h4>');
             featuresDiv.append(`
             <ul style="padding-left:20px;">
-                <li>Add opacity sliders for Geoportal layers</li>
                 <li>Custom theme color</li>
                 <li>Auto House nuber with own delay</li>
                 <li>Lower Lock Segments Highlighter – fix them in one click</li>
@@ -652,7 +639,7 @@ if (LOCK_ENABLED) {
     function updateChipColor(hexColor) {
         const rgb = hexToRgb(hexColor);
         if (rgb) {
-            const darkerRgb = rgb.map(c => Math.floor(c * 0.7)); // 80% jasności
+            const darkerRgb = rgb.map(c => Math.floor(c * 0.7));
             document.documentElement.style.setProperty(
                 '--wz-chip-checked-background-color',
                 `rgb(${darkerRgb.join(',')})`
@@ -668,64 +655,6 @@ if (LOCK_ENABLED) {
         return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
     }
 
-    // ---------- OPACITY SLIDERS ----------
-
-    function waitForLayerAndUI() {
-        if (!window.W || !W.map || !document.querySelector('#layer-switcher-region .menu .list-unstyled')) {
-            return setTimeout(waitForLayerAndUI, 1000);
-        }
-
-        const listItems = document.querySelectorAll(
-            '#layer-switcher-region .menu .list-unstyled li.group:nth-child(5) ul li'
-        );
-
-        LAYERS_WITH_OPACITY.forEach(layerName => {
-            const layer = W.map.getLayersByName(layerName)[0];
-            if (!layer) return;
-
-            let targetLi = null;
-            let checkbox = null;
-
-            listItems.forEach(li => {
-                if (li.textContent.trim() === layerName) {
-                    targetLi = li;
-                    checkbox = li.querySelector('wz-checkbox') || li.querySelector('input[type="checkbox"]');
-                }
-            });
-
-            if (!targetLi || targetLi.querySelector('input[type="range"]')) return;
-
-            const slider = document.createElement("input");
-            slider.type = "range";
-            slider.min = "0";
-            slider.max = "100";
-            slider.value = "100";
-            slider.className = "geoportal-opacity-addon hidden";
-
-            layer.setOpacity(1);
-
-            slider.addEventListener("input", () => {
-                layer.setOpacity(slider.value / 100);
-            });
-
-            targetLi.appendChild(slider);
-
-            if (checkbox) {
-                const updateVisibility = () => {
-                    const checked =
-                        checkbox.checked !== undefined
-                            ? checkbox.checked
-                            : checkbox.hasAttribute('checked');
-                    slider.classList.toggle('hidden', !checked);
-                };
-
-                updateVisibility();
-                checkbox.addEventListener('change', updateVisibility);
-            }
-
-            console.log("WME Addons: opacity slider added for", layerName);
-        });
-    }
 
     // ---------- BOOTSTRAP ----------
     function WMEAddons_bootstrap() {
@@ -745,21 +674,12 @@ if (LOCK_ENABLED) {
     initCssVariables();
     restoreColorFromStorage();
     addStyles();
-    waitForLayerAndUI();
 
 
     // ---------- LOCAL VERSION ----------
     const VERSION_STORAGE_KEY = "wme-addons-installed-version";
     // ----
 
-    // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
-
-                                                        const CHANGELOG = [
-                                                            "Fixed default colors and several color-related bugs",
-                                                            "Other bug fixes"
-                                                        ];
-
-    // ---- --------------------------------------------------------------------------------------------------
 
     function checkLocalVersion() {
         const storedVersion = localStorage.getItem(VERSION_STORAGE_KEY);
