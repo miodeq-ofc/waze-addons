@@ -1,20 +1,19 @@
 // ==UserScript==
-// @name         WME Addons
-// @version      1.2.4
-// @author       miodeq
-// @description  Addons for WME and other scripts
-// @include          https://www.waze.com/editor*
-// @include          https://www.waze.com/*/editor*
-// @include          https://beta.waze.com/editor*
-// @include          https://beta.waze.com/*/editor*
-// @exclude          https://www.waze.com/user*
-// @exclude          https://www.waze.com/*/user*
-// @run-at       document-end
-// @grant        none
-// @ copyright   Miodeq, Mateusz Tomaszek 2026
-// @downloadURL  https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
-// @updateURL    https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
-// @icon         https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
+// @name            WME Addons
+// @version         1.2.4
+// @description     Addons for WME and other scripts
+// @include         https://www.waze.com/editor*
+// @include         https://www.waze.com/*/editor*
+// @include         https://beta.waze.com/editor*
+// @include         https://beta.waze.com/*/editor*
+// @exclude         https://www.waze.com/user*
+// @exclude         https://www.waze.com/*/user*
+// @run-at          document-end
+// @grant           none
+// @copyright       2025-2026, Miodeq, Mateusz Tomaszek
+// @downloadURL     https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
+// @updateURL       https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
+// @icon            https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
 // ==/UserScript==
 
 /* global W */
