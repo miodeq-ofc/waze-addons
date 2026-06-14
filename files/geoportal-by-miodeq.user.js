@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name            WME Geoportal by Miodeq - FINAL FIX
-// @version         1.0.6
-// @description     Visuals on top, Interaction preserved.
+// @name            WME Geoportal by Miodeq
+// @version         1.0.7
+// @description     Geoportal layers to WME
 // @include         https://www.waze.com/editor*
 // @include         https://www.waze.com/*/editor*
 // @include         https://beta.waze.com/editor*
