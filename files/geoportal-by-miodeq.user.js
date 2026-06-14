@@ -11,8 +11,8 @@
 // @run-at          document-end
 // @grant           none
 // @copyright       2025-2026, Miodeq
-// @downloadURL     https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.js
-// @updateURL       https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.js
+// @downloadURL     https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.user.js
+// @updateURL       https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.user.js
 // @icon            https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
 // ==/UserScript==
 
