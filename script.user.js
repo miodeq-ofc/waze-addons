@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.3.1
+// @version            1.3.2
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,23 +16,23 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.3.1';
+const SCRIPT_VERSION = '1.3.2';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
+const SPEED_OVERLAY_STORAGE_KEY = 'wme-addons-speed-overlay-enabled';
+const SPEED_CONFIG_STORAGE_KEY = 'wme-addons-speed-config';
+const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
 
 (function () {
     'use strict';
-
-    // --- Load Font Awesome if not Qpresent ---
-
 
     let wmeSDK;
 
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Added dark mode! Change in script settings",
+        "Added Speed Limits Highlighter! Change in script settings",
         "Other bug fixes"
     ];
 
@@ -617,7 +617,54 @@ function replaceWazeLogo() {
 
 addStyles();
 restoreColorFromStorage();
-setTimeout(replaceWazeLogo, 1000);
+setTimeout(replaceWazeLogo, 300);
+
+    function shiftGeometry(points, distance, isLeft) {
+        if (!isLeft) distance = -distance;
+        const shiftedPoints = [];
+
+        for (let i = 0; i < points.length; i++) {
+            let pCurrent = points[i];
+            let v1 = null;
+            let v2 = null;
+
+            if (i > 0) {
+                let pPrev = points[i - 1];
+                let dx = pCurrent.x - pPrev.x;
+                let dy = pCurrent.y - pPrev.y;
+                let len = Math.sqrt(dx * dx + dy * dy);
+                if (len !== 0) v1 = { x: -dy / len, y: dx / len };
+            }
+
+            if (i < points.length - 1) {
+                let pNext = points[i + 1];
+                let dx = pNext.x - pCurrent.x;
+                let dy = pNext.y - pCurrent.y;
+                let len = Math.sqrt(dx * dx + dy * dy);
+                if (len !== 0) v2 = { x: -dy / len, y: dx / len };
+            }
+
+            let finalNormal;
+            if (v1 && v2) {
+                let avgX = (v1.x + v2.x) / 2;
+                let avgY = (v1.y + v2.y) / 2;
+                let avgLen = Math.sqrt(avgX * avgX + avgY * avgY);
+                finalNormal = { x: avgX / avgLen, y: avgY / avgLen };
+            } else if (v1) {
+                finalNormal = v1;
+            } else if (v2) {
+                finalNormal = v2;
+            } else {
+                finalNormal = { x: 0, y: 0 };
+            }
+
+            shiftedPoints.push(new OpenLayers.Geometry.Point(
+                pCurrent.x + finalNormal.x * distance,
+                pCurrent.y + finalNormal.y * distance
+            ));
+        }
+        return shiftedPoints;
+    }
 
     function shouldHighlight(seg) {
         const attr = seg.attributes;
@@ -663,6 +710,22 @@ setTimeout(replaceWazeLogo, 1000);
         if (roadType === 18) return lock < 2;
 
         return false;
+    }
+        function getSpeedConfig() {
+        const saved = localStorage.getItem(SPEED_CONFIG_STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+
+        // Domyślne ustawienia (co 10 km/h od 10 do 140)
+        const defaults = [];
+        const colors = ['#ff0000', '#ff4500', '#ff8c00', '#ffd700', '#adff2f', '#00ff00', '#00fa9a', '#00ffff', '#00bfff', '#0000ff', '#8a2be2', '#a020f0', '#ff00ff', '#ff1493'];
+        for (let i = 1; i <= 14; i++) {
+            defaults.push({ speed: i * 10, color: colors[(i - 1) % colors.length] });
+        }
+        return defaults;
+    }
+
+    function saveSpeedConfig(config) {
+        localStorage.setItem(SPEED_CONFIG_STORAGE_KEY, JSON.stringify(config));
     }
 
     // ---------- SETTINGS TAB ----------
@@ -715,13 +778,9 @@ setTimeout(replaceWazeLogo, 1000);
             themeSettingsRow.append(colorGroup).append(darkGroup);
             settingsDiv.append(themeSettingsRow);
 
-            // --- Vertical Toolbox ---
             settingsDiv.append('<h4>Settings</h4>');
             const toolboxDiv = $('<div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>');
 
-            // Vertical Toolbox checkbox
-            const toolboxCheckbox = $('<wz-checkbox id="vertical-toolbox">Vertical ToolBox</wz-checkbox>');
-            toolboxDiv.append(toolboxCheckbox);
 
             // OPP Overlay checkbox
             const oppOverlayCheckbox = $('<wz-checkbox id="opp-overlay-toggle">Show Average Speed Camera</wz-checkbox>');
@@ -730,6 +789,7 @@ setTimeout(replaceWazeLogo, 1000);
             // LOCK Overlay checkbox
             const lockOverlayCheckbox = $('<wz-checkbox id="lock-overlay-toggle">Show Low Locks Segments <i class="fa fa-question-circle lock-help"></i></wz-checkbox>');
             toolboxDiv.append(lockOverlayCheckbox);
+
 
             // Auto House Numbers row
             const autoDomDiv = $(`
@@ -741,6 +801,95 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
 </div>
 `);
             toolboxDiv.append(autoDomDiv);
+
+            // Speed Overlay checkbox
+            const speedOverlayCheckbox = $('<wz-checkbox id="speed-overlay-toggle">Highlight Speed Limits</wz-checkbox>');
+            toolboxDiv.append(speedOverlayCheckbox);
+
+            // --- Dynamic Speed Config Panel ---
+            const speedConfigContainer = $('<div id="speed-config-container" style="display:none; margin-top:10px; padding:10px; background: rgba(128,128,128,0.1); border-radius:8px; font-size:12px;"></div>');
+            toolboxDiv.append(speedConfigContainer);
+
+            function renderSpeedConfig() {
+                const config = getSpeedConfig();
+                speedConfigContainer.empty();
+                speedConfigContainer.append('<strong style="display:block; margin-bottom:5px;">Speed Colors:</strong>');
+                const list = $('<div id="speed-list" style="display:flex; flex-direction:column; gap:4px;"></div>');
+                speedConfigContainer.append(list);
+
+                const othersColor = localStorage.getItem(SPEED_OTHERS_COLOR_STORAGE_KEY) || '#000000';
+                const othersRow = $(`<div style="display:flex; align-items:center; gap:5px; justify-content:space-between; background:rgba(0,0,0,0.2); padding:2px 5px; border-radius:4px; border: 1px solid var(--primary);">
+                    <span style="font-weight:bold;">Others</span>
+                    <input type="color" value="${othersColor}" style="width:25px; height:20px; border:none; background:none; cursor:pointer;">
+                </div>`);
+
+                othersRow.find('input').on('input', function() {
+                    localStorage.setItem(SPEED_OTHERS_COLOR_STORAGE_KEY, $(this).val());
+                    if (window.SPEED_LAYER_INSTANCE) initSpeedOverlay();
+                });
+                list.append(othersRow);
+
+                config.forEach((item, index) => {
+                    const row = $(`<div style="display:flex; align-items:center; gap:5px; justify-content:space-between; background:rgba(0,0,0,0.1); padding:2px 5px; border-radius:4px;">
+                        <span>${item.speed} km/h</span>
+                        <input type="color" value="${item.color}" style="width:25px; height:20px; border:none; background:none; cursor:pointer;">
+                        <button type="button" class="btn-del-speed" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">✕</button>
+                    </div>`);
+
+                    row.find('input').on('input', function() {
+                        config[index].color = $(this).val();
+                        saveSpeedConfig(config);
+                        if (window.SPEED_LAYER_INSTANCE) initSpeedOverlay();
+                    });
+
+                    row.find('.btn-del-speed').on('click', function() {
+                        config.splice(index, 1);
+                        saveSpeedConfig(config);
+                        renderSpeedConfig();
+                        if (window.SPEED_LAYER_INSTANCE) initSpeedOverlay();
+                    });
+                    list.append(row);
+                });
+
+                const addBtn = $('<button type="button" style="margin-top:8px; width:100%; cursor:pointer; font-size:11px;">+ Add Speed</button>');
+                addBtn.on('click', () => {
+                    const newSpeed = prompt("Enter speed (km/h):", "100");
+                    if (newSpeed && !isNaN(newSpeed)) {
+                        config.push({ speed: parseInt(newSpeed), color: '#ffffff' });
+                        saveSpeedConfig(config);
+                        renderSpeedConfig();
+                        if (window.SPEED_LAYER_INSTANCE) initSpeedOverlay();
+                    }
+                });
+                speedConfigContainer.append(addBtn);
+            }
+
+            speedOverlayCheckbox.on('change', () => {
+                const isEnabled = speedOverlayCheckbox.prop('checked');
+                localStorage.setItem(SPEED_OVERLAY_STORAGE_KEY, isEnabled ? 'true' : 'false');
+                speedConfigContainer.toggle(isEnabled);
+
+                if (isEnabled) {
+                    renderSpeedConfig();
+                    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                        initSpeedOverlay();
+                    });
+                } else {
+                    if (window.SPEED_LAYER_INSTANCE) {
+                        window.SPEED_LAYER_INSTANCE.removeAllFeatures();
+                    }
+                }
+            });
+
+            const isSpeedEnabled = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+            speedOverlayCheckbox.prop('checked', isSpeedEnabled);
+            if (isSpeedEnabled) {
+                speedConfigContainer.show();
+                renderSpeedConfig();
+                ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                    initSpeedOverlay();
+                });
+            }
 
 
             settingsDiv.append(toolboxDiv);
@@ -773,56 +922,68 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
                 const layer = window.OPP_LAYER_INSTANCE;
 
                 function scan() {
-                    if (!layer || !OPP_ENABLED) {
+                    const currentEnabled = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+                    if (!layer || !currentEnabled) {
                         layer?.removeAllFeatures();
+                        return;
+                    }
+
+                    const bounds = W.map.getBounds();
+                    const zoom = W.map.getZoom();
+
+                    if (zoom < 15) {
+                        layer.removeAllFeatures();
                         return;
                     }
 
                     layer.removeAllFeatures();
 
-                    const zoom = W.map.getZoom();
-                    const iconSize = zoom >= 17 ? 50 : 40;
+                    const pixelOffset = 8;
+                    const coordinateOffset = pixelOffset * W.map.getResolution();
+                    const config = getSpeedConfig();
+                    const othersColor = localStorage.getItem(SPEED_OTHERS_COLOR_STORAGE_KEY) || '#000000';
 
                     const segments = Object.values(W.model.segments.objects);
+
+                    const featuresToAdd = [];
 
                     segments.forEach(seg => {
                         const geom = seg.getOLGeometry();
                         if (!geom) return;
+
+                        const extent = geom.getExtent();
+                        if (!OpenLayers.BBox.intersects(bounds, extent)) {
+                            return;
+                        }
+
                         const points = geom.getVertices();
                         const attr = seg.attributes;
 
-                        const isOPP =
-                            ((attr.fwdFlags === 1 || attr.fwdFlags === 5) && attr.fwdDirection) ||
-                            ((attr.revFlags === 1 || attr.revFlags === 5) && attr.revDirection);
-                        if (!isOPP) return;
-
-                        // LINES OPP
-                        const lineFeature = new OpenLayers.Feature.Vector(
-                            new OpenLayers.Geometry.LineString(points),
-                            null,
-                            { strokeColor: "#0000FF", strokeWidth: 15, strokeOpacity: 0.4, graphicZIndex: 3000 }
-                        );
-                        layer.addFeatures([lineFeature]);
-
-                        // IMG OPP
-                        const interval = 10;
-                        for (let i = 0; i < points.length; i += interval) {
-                            const pointFeature = new OpenLayers.Feature.Vector(
-                                new OpenLayers.Geometry.Point(points[i].x, points[i].y),
+                        // FWD
+                        if (attr.fwdDirection && attr.fwdMaxSpeed !== null && attr.fwdMaxSpeed !== undefined) {
+                            const speedMatch = config.find(c => c.speed === attr.fwdMaxSpeed);
+                            const colorToUse = speedMatch ? speedMatch.color : othersColor;
+                            const fwdPoints = shiftGeometry(points, coordinateOffset, false);
+                            featuresToAdd.push(new OpenLayers.Feature.Vector(
+                                new OpenLayers.Geometry.LineString(fwdPoints),
                                 null,
-                                {
-                                    externalGraphic: "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/opp.png",
-                                    graphicWidth: iconSize,
-                                    graphicHeight: iconSize,
-                                    graphicXOffset: -iconSize / 2,
-                                    graphicYOffset: -iconSize / 2,
-                                    graphicOpacity: 1,
-                                    graphicZIndex: 9999999999
-                                }
-                            );
-                            layer.addFeatures([pointFeature]);
+                                { strokeColor: colorToUse, strokeWidth: 6, strokeOpacity: 0.7, graphicZIndex: 3001 }
+                            ));
+                        }
+
+                        //  REV
+                        if (attr.revDirection && attr.revMaxSpeed !== null && attr.revMaxSpeed !== undefined) {
+                            const speedMatch = config.find(c => c.speed === attr.revMaxSpeed);
+                            const colorToUse = speedMatch ? speedMatch.color : othersColor;
+                            const revPoints = shiftGeometry(points, coordinateOffset, true);
+                            featuresToAdd.push(new OpenLayers.Feature.Vector(
+                                new OpenLayers.Geometry.LineString(revPoints),
+                                null,
+                                { strokeColor: colorToUse, strokeWidth: 6, strokeOpacity: 0.7, graphicZIndex: 3001 }
+                            ));
                         }
                     });
+                    layer.addFeatures(featuresToAdd);
                 }
 
                 scan();
@@ -912,6 +1073,92 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
                 W.map.events.register("zoomend", null, scan);
             }
 
+                        // ---------- Speed Overlay Function ----------
+            function initSpeedOverlay() {
+                if (!window.W || !W.map || !W.model) {
+                    setTimeout(initSpeedOverlay, 500);
+                    return;
+                }
+
+                const SPEED_ENABLED = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+                if (!SPEED_ENABLED) {
+                    if (window.SPEED_LAYER_INSTANCE) {
+                        window.SPEED_LAYER_INSTANCE.removeAllFeatures();
+                    }
+                    return;
+                }
+
+                if (!window.SPEED_LAYER_INSTANCE) {
+                    window.SPEED_LAYER_INSTANCE = new OpenLayers.Layer.Vector("Speed Overlay Layer");
+                    W.map.addLayer(window.SPEED_LAYER_INSTANCE);
+                }
+
+                const layer = window.SPEED_LAYER_INSTANCE;
+
+                function scan() {
+                    const currentEnabled = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+                    if (!layer || !currentEnabled) {
+                        layer?.removeAllFeatures();
+                        return;
+                    }
+                    layer.removeAllFeatures();
+
+                    const zoom = W.map.getZoom();
+
+                    let dynamicPixelOffset = 8;
+
+                    if (zoom >= 18) {
+                        dynamicPixelOffset = 12;
+                    } else if (zoom <= 15) {
+                        dynamicPixelOffset = 6;
+                    } else {
+                        dynamicPixelOffset = 8;
+                    }
+
+                    const coordinateOffset = dynamicPixelOffset * W.map.getResolution();
+                    const config = getSpeedConfig();
+                    const othersColor = localStorage.getItem(SPEED_OTHERS_COLOR_STORAGE_KEY) || '#000000';
+                    const segments = Object.values(W.model.segments.objects);
+
+                    segments.forEach(seg => {
+                        const geom = seg.getOLGeometry();
+                        if (!geom) return;
+                        const points = geom.getVertices();
+                        const attr = seg.attributes;
+
+                        // FWD
+                        if (attr.fwdDirection && attr.fwdMaxSpeed !== null && attr.fwdMaxSpeed !== undefined) {
+                            const speedMatch = config.find(c => c.speed === attr.fwdMaxSpeed);
+                            const colorToUse = speedMatch ? speedMatch.color : othersColor;
+                            const fwdPoints = shiftGeometry(points, coordinateOffset, false);
+                            const fwdLine = new OpenLayers.Feature.Vector(
+                                new OpenLayers.Geometry.LineString(fwdPoints),
+                                null,
+                                { strokeColor: colorToUse, strokeWidth: 3, strokeOpacity: 0.7, graphicZIndex: 3001 }
+                            );
+                            layer.addFeatures([fwdLine]);
+                        }
+
+                        // REV
+                        if (attr.revDirection && attr.revMaxSpeed !== null && attr.revMaxSpeed !== undefined) {
+                            const speedMatch = config.find(c => c.speed === attr.revMaxSpeed);
+                            const colorToUse = speedMatch ? speedMatch.color : othersColor;
+                            const revPoints = shiftGeometry(points, coordinateOffset, true);
+                            const revLine = new OpenLayers.Feature.Vector(
+                                new OpenLayers.Geometry.LineString(revPoints),
+                                null,
+                                { strokeColor: colorToUse, strokeWidth: 3, strokeOpacity: 0.7, graphicZIndex: 3001 }
+                            );
+                            layer.addFeatures([revLine]);
+                        }
+                    });
+                }
+
+                scan();
+                W.map.events.register("moveend", null, scan);
+                W.map.events.register("zoomend", null, scan);
+            }
+
             // ---------- Checkbox Event ----------
             oppOverlayCheckbox.on('change', () => {
                 OPP_ENABLED = oppOverlayCheckbox.prop('checked');
@@ -925,6 +1172,7 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
                     window.OPP_LAYER_INSTANCE?.removeAllFeatures();
                 }
             });
+
 
 
             lockOverlayCheckbox.on('change', () => {
@@ -958,45 +1206,6 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
                 });
             }
 
-
-
-
-            toolboxCheckbox.on('click', () => {
-                const tb = document.getElementById('WMETB_NavBar');
-                const tbSpan = document.getElementById('WMETB_NavBarSpan');
-                const tooltips = document.getElementsByClassName('WMETBtooltip');
-                if (!tb || !tbSpan) return;
-
-                tb.style.display = 'flex';
-                tb.style.alignItems = 'center';
-                tb.style.justifyContent = 'center';
-                tb.style.gap = '3px';
-
-                if (toolboxCheckbox.prop('checked')) {
-                    tb.style.flexDirection = 'row';
-                    tb.style.width = 'auto';
-                    tbSpan.textContent = 'Toolbox';
-
-                    Array.from(tooltips).forEach(t => {
-                        t.style.border = '';
-                        t.style.borderBottom = '';
-                    });
-                } else {
-                    tb.style.flexDirection = 'column';
-                    tb.style.width = '30px';
-                    tbSpan.textContent = 'TB';
-
-                    Array.from(tooltips).forEach(t => {
-                        t.style.border = 'none';
-                        t.style.borderTop = '1px solid #8d8d8d';
-                    });
-                }
-
-                Array.from(tb.children).forEach(child => {
-                    if (child !== tbSpan) child.style.margin = '0 auto';
-                });
-            });
-
             // --- Features ---
             const featuresDiv = $('<div style="margin-top:15px;"></div>');
             featuresDiv.append('<h4>Features</h4>');
@@ -1004,6 +1213,7 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
 <ul style="padding-left:20px;">
 <li>Dark / Light mode</li>
 <li>Custom theme color</li>
+<li>Speed Limits Highlighter</li>
 <li>Auto House nuber with own delay</li>
 <li>Lower Lock Segments Highlighter – fix them in one click (only 🇵🇱)</li>
 <li>Show segments with Speed Camera</li>
@@ -1382,7 +1592,6 @@ ${changelogHTML}
     });
     // ---------- LOCK FIX TOOL (Toolbox style) ----------
 
-    // określenie wymaganej blokady (ta sama logika co highlight)
     function getRequiredLock(attr) {
         const roadType = attr.roadType;
 
@@ -1507,9 +1716,7 @@ ${changelogHTML}
 
         const children = Array.from(toolbar.children);
 
-
         const insertIndex = Math.max(children.length - 3, 0);
-
 
         const referenceNode = children[insertIndex];
 
@@ -1526,13 +1733,11 @@ ${changelogHTML}
         const savedColor = localStorage.getItem(COLOR_STORAGE_KEY) || DEFAULT_COLOR;
         const isDark = localStorage.getItem(DARK_MODE_STORAGE_KEY) === 'true';
 
-        // Przywracaj kolor jeśli zniknął
         if (document.documentElement.style.getPropertyValue('--primary') !== savedColor) {
             document.documentElement.style.setProperty('--primary', savedColor);
             document.documentElement.style.setProperty('--primary_variant', savedColor);
         }
 
-        // Przywracaj tryb ciemny jeśli zniknął
         if (isDark && document.documentElement.getAttribute('wz-theme') !== 'dark') {
             document.documentElement.setAttribute('wz-theme', 'dark');
         } else if (!isDark && document.documentElement.hasAttribute('wz-theme')) {
