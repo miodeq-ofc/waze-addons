@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            WME Geoportal by Miodeq
-// @version         1.0.1
+// @version         1.0.2
 // @description     Geoportal layers for WME
 // @include         https://www.waze.com/editor*
 // @include         https://www.waze.com/*/editor*
@@ -11,12 +11,14 @@
 // @run-at          document-end
 // @grant           none
 // @copyright       2025-2026, Miodeq
+// @downloadURL     https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.js
+// @updateURL       https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.js
 // @icon            https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
 // ==/UserScript==
 
 /* global W, $, getWmeSdk, OpenLayers */
 
-const SCRIPT_VERSION = '1.0.1';
+const SCRIPT_VERSION = '1.0.2;
 const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
 
 (function () {
