@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            WME Geoportal by Miodeq
-// @version         1.0.4
+// @version         1.0.5
 // @description     Geoportal layers for WME
 // @include         https://www.waze.com/editor*
 // @include         https://www.waze.com/*/editor*
@@ -125,6 +125,10 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
     function addStyles() {
         const style = document.createElement("style");
         style.textContent = `
+            /* Ta linia sprawia, że warstwy mapy nie blokują kliknięć w segmenty */
+            .olLayerDiv {
+                pointer-events: none !important;
+            }
             .geo-layer-slider-container {
                 padding-left: 30px;
                 padding-bottom: 10px;
@@ -155,6 +159,7 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         `;
         document.head.appendChild(style);
     }
+
 
     // ---------- LAYER SWITCHER INTEGRATION ----------
     function injectIntoWmeLayerSwitcher(retries = 0) {
