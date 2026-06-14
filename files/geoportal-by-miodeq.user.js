@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name            WME Geoportal by Miodeq
-// @version         1.0.5
-// @description     Geoportal layers for WME
+// @name            WME Geoportal by Miodeq - FINAL FIX
+// @version         1.0.6
+// @description     Visuals on top, Interaction preserved.
 // @include         https://www.waze.com/editor*
 // @include         https://www.waze.com/*/editor*
 // @include         https://beta.waze.com/editor*
@@ -25,7 +25,6 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
 
     let wmeSDK;
 
-    // ---------- GEOPORTAL DATA ----------
     const GEOPORTAL_SERVICES = {
         orto: "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution?",
         orto_high: "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/HighResolution?",
@@ -49,7 +48,6 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
 
     let GEOPORTAL_LAYERS = {};
 
-    // ---------- HELPERS ----------
     function getGeoSettings() {
         const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
         return saved ? JSON.parse(saved) : { enabledLayers: {}, layerOpacity: {} };
@@ -85,7 +83,6 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
             },
             getInstance: function() {
                 if (!this.instance) {
-                    const self = this;
                     this.instance = new window.OpenLayers.Layer.WMS(name, url, {
                         layers, transparent: "true", format, version: "1.3.0"
                     }, {
@@ -95,17 +92,11 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
                         getURL: function(bounds) {
                             const currentZoom = window.W.map.getZoom();
                             if (options.minZ !== undefined && currentZoom < options.minZ) return null;
-
                             let b = bounds.clone();
                             b = this.adjustBounds(b);
                             const imageSize = this.getImageSize(b);
                             b.transform(proj900913, proj4326);
-
-                            return this.getFullRequestString({
-                                BBOX: b.toArray(true),
-                                WIDTH: imageSize.w,
-                                HEIGHT: imageSize.h
-                            });
+                            return this.getFullRequestString({ BBOX: b.toArray(true), WIDTH: imageSize.w, HEIGHT: imageSize.h });
                         },
                         getFullRequestString: function(params) {
                             this.params.CRS = "EPSG:4326";
@@ -121,13 +112,16 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         GEOPORTAL_LAYERS[name] = layerObj;
     }
 
-    // ---------- STYLES ----------
     function addStyles() {
         const style = document.createElement("style");
         style.textContent = `
-            /* Ta linia sprawia, że warstwy mapy nie blokują kliknięć w segmenty */
-            .olLayerDiv {
+            /* AGRESYWNY CSS: Wszystko w warstwie Geoportalu musi być nieklikalne */
+            .geo-portal-layer,
+            .geo-portal-layer *,
+            .geo-portal-layer img,
+            .geo-portal-layer div {
                 pointer-events: none !important;
+                cursor: default !important;
             }
             .geo-layer-slider-container {
                 padding-left: 30px;
@@ -160,19 +154,14 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         document.head.appendChild(style);
     }
 
-
-    // ---------- LAYER SWITCHER INTEGRATION ----------
     function injectIntoWmeLayerSwitcher(retries = 0) {
         if (retries > 100) return;
-
         const mainList = document.querySelector('#layer-switcher-region .scrollable ul') ||
                          document.querySelector('.layer-switcher .menu .scrollable ul');
-
         if (!mainList) {
             setTimeout(() => injectIntoWmeLayerSwitcher(retries + 1), 1000);
             return;
         }
-
         if (document.getElementById('geoportal-layers-group')) return;
 
         let groupLi = document.createElement('li');
@@ -207,20 +196,15 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
             layerNames.forEach(lName => {
                 const lData = GEOPORTAL_LAYERS[lName];
                 if (!lData) return;
-
                 const li = document.createElement('li');
-
                 const selectorDiv = document.createElement('div');
                 selectorDiv.className = 'layer-selector';
-
                 const checkbox = document.createElement('wz-checkbox');
                 checkbox.className = 'layer-selector-sdk-checkbox';
                 checkbox.checked = lData.isEnabled;
-
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'layer-selector-container';
                 labelDiv.innerText = lName;
-
                 checkbox.appendChild(labelDiv);
 
                 let sliderDiv = null;
@@ -228,14 +212,11 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
                     sliderDiv = document.createElement('div');
                     sliderDiv.className = 'geo-layer-slider-container';
                     if (lData.isEnabled) sliderDiv.classList.add('visible');
-
                     const slider = document.createElement('input');
                     slider.type = 'range';
                     slider.className = 'geo-opacity-slider';
-                    slider.min = "0";
-                    slider.max = "100";
+                    slider.min = "0"; slider.max = "100";
                     slider.value = (lData.opacity * 100).toString();
-
                     slider.oninput = (e) => {
                         const val = parseInt(e.target.value) / 100;
                         lData.setOpacity(val);
@@ -245,7 +226,6 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
                         }
                         saveGeoSettings();
                     };
-
                     sliderDiv.appendChild(slider);
                 }
 
@@ -253,25 +233,17 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
                     const isChecked = e.target.checked;
                     lData.setVisibility(isChecked);
                     saveGeoSettings();
-                    if (sliderDiv) {
-                        sliderDiv.classList.toggle('visible', isChecked);
-                    }
+                    if (sliderDiv) sliderDiv.classList.toggle('visible', isChecked);
                 };
-
                 selectorDiv.appendChild(checkbox);
                 li.appendChild(selectorDiv);
-
-                if (sliderDiv) {
-                    li.appendChild(sliderDiv);
-                }
-
+                if (sliderDiv) li.appendChild(sliderDiv);
                 groupList.appendChild(li);
             });
         });
 
         collapsibleArea.appendChild(groupList);
         groupLi.appendChild(collapsibleArea);
-
         headerDiv.onclick = () => {
             const isExpanded = collapsibleArea.getAttribute('aria-expanded') === 'true';
             collapsibleArea.setAttribute('aria-expanded', !isExpanded);
@@ -279,7 +251,6 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         };
     }
 
-    // ---------- BOOTSTRAP ----------
     function Geoportal_bootstrap() {
         if (!document.getElementById('edit-panel') || !wmeSDK.State.isReady) {
             setTimeout(Geoportal_bootstrap, 250);
@@ -290,46 +261,50 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         createGeoLayer("Ortofoto szczegółowa", GEOPORTAL_SERVICES.orto_high, "Raster", "image/jpeg", { minZ: 14, singleTile: false, zIndex: 0 });
         createGeoLayer("OSM", GEOPORTAL_SERVICES.osm, "osm", "image/png", { zIndex: 0 });
 
-        createGeoLayer("Adresy", GEOPORTAL_SERVICES.adresy, "prg-adresy", "image/png", { zIndex: 10000 });
-        createGeoLayer("Ulice", GEOPORTAL_SERVICES.adresy, "prg-ulice", "image/png", { zIndex: 10000 });
-        createGeoLayer("Place", GEOPORTAL_SERVICES.adresy, "prg-place", "image/png", { zIndex: 10000 });
-        createGeoLayer("Przejazdy kolejowe", GEOPORTAL_SERVICES.rail, "PMT_Linie_Kolejowe_Sp__z_o_o_", "image/png", { zIndex: 10000 });
-        createGeoLayer("Drogi", GEOPORTAL_SERVICES.mileage, "planowane,wbudowie,pikietaz,drugorzedne,glowne,ekspresowe,autostrady", "image/png", { zIndex: 10000 });
-        createGeoLayer("Podział administracyjny", GEOPORTAL_SERVICES.parcels, "dzialki,numery_dzialek", "image/png", { zIndex: 10000 });
-        createGeoLayer("Miasta", GEOPORTAL_SERVICES.border_city, "A04_Granice_miast", "image/png", { zIndex: 10000 });
-        createGeoLayer("Gminy", GEOPORTAL_SERVICES.border_city, "A03_Granice_gmin", "image/png", { zIndex: 10000 });
-        createGeoLayer("Powiaty", GEOPORTAL_SERVICES.border_city, "A02_Granice_powiatow", "image/png", { zIndex: 10000 });
-        createGeoLayer("Województwa", GEOPORTAL_SERVICES.border_city, "A01_Granice_wojewodztw", "image/png", { zIndex: 10000 });
-        createGeoLayer("Granica PL", GEOPORTAL_SERVICES.border_city, "A00_Granice_panstwa", "image/png", { zIndex: 10000 });
-        createGeoLayer("Obiekty topograficzne", GEOPORTAL_SERVICES.topo, "bdot", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - Gruntowa", GEOPORTAL_SERVICES.kompozycja, "DrDGr,LGr", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - Utwardzona", GEOPORTAL_SERVICES.kompozycja, "JDrLNUt", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - Twarda", GEOPORTAL_SERVICES.kompozycja, "JDLNTw,JDrZTw", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - Główna", GEOPORTAL_SERVICES.kompozycja, "JDrG", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - W budowie", GEOPORTAL_SERVICES.kompozycja, "DrEk", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - Jezdnia", GEOPORTAL_SERVICES.kompozycja, "JDrEk", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - Autostrada", GEOPORTAL_SERVICES.kompozycja, "JAu", "image/png", { zIndex: 10000 });
-        createGeoLayer("BDOT - Numer drogi", GEOPORTAL_SERVICES.kompozycja, "NrDr", "image/png", { zIndex: 10000 });
+        createGeoLayer("Adresy", GEOPORTAL_SERVICES.adresy, "prg-adresy", "image/png", { zIndex: 0 });
+        createGeoLayer("Ulice", GEOPORTAL_SERVICES.adresy, "prg-ulice", "image/png", { zIndex: 3000 });
+        createGeoLayer("Place", GEOPORTAL_SERVICES.adresy, "prg-place", "image/png", { zIndex: 3000 });
+        createGeoLayer("Przejazdy kolejowe", GEOPORTAL_SERVICES.rail, "PMT_Linie_Kolejowe_Sp__z_o_o_", "image/png", { zIndex: 3000 });
+        createGeoLayer("Drogi", GEOPORTAL_SERVICES.mileage, "planowane,wbudowie,pikietaz,drugorzedne,glowne,ekspresowe,autostrady", "image/png", { zIndex: 3000 });
+        createGeoLayer("Podział administracyjny", GEOPORTAL_SERVICES.parcels, "dzialki,numery_dzialek", "image/png", { zIndex: 0 });
+        createGeoLayer("Miasta", GEOPORTAL_SERVICES.border_city, "A04_Granice_miast", "image/png", { zIndex: 3000 });
+        createGeoLayer("Gminy", GEOPORTAL_SERVICES.border_city, "A03_Granice_gmin", "image/png", { zIndex: 3000 });
+        createGeoLayer("Powiaty", GEOPORTAL_SERVICES.border_city, "A02_Granice_powiatow", "image/png", { zIndex: 3000 });
+        createGeoLayer("Województwa", GEOPORTAL_SERVICES.border_city, "A01_Granice_wojewodztw", "image/png", { zIndex: 3000 });
+        createGeoLayer("Granica PL", GEOPORTAL_SERVICES.border_city, "A00_Granice_panstwa", "image/png", { zIndex: 3000 });
+        createGeoLayer("Obiekty topograficzne", GEOPORTAL_SERVICES.topo, "bdot", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - Gruntowa", GEOPORTAL_SERVICES.kompozycja, "DrDGr,LGr", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - Utwardzona", GEOPORTAL_SERVICES.kompozycja, "JDrLNUt", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - Twarda", GEOPORTAL_SERVICES.kompozycja, "JDLNTw,JDrZTw", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - Główna", GEOPORTAL_SERVICES.kompozycja, "JDrG", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - W budowie", GEOPORTAL_SERVICES.kompozycja, "DrEk", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - Jezdnia", GEOPORTAL_SERVICES.kompozycja, "JDrEk", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - Autostrada", GEOPORTAL_SERVICES.kompozycja, "JAu", "image/png", { zIndex: 3000 });
+        createGeoLayer("BDOT - Numer drogi", GEOPORTAL_SERVICES.kompozycja, "NrDr", "image/png", { zIndex: 3000 });
 
         const geoS = getGeoSettings();
         Object.keys(GEOPORTAL_LAYERS).forEach(name => {
-            if (geoS.enabledLayers[name]) {
-                GEOPORTAL_LAYERS[name].setVisibility(true);
-            }
+            if (geoS.enabledLayers[name]) GEOPORTAL_LAYERS[name].setVisibility(true);
         });
 
         const fixZIndex = () => {
             Object.values(GEOPORTAL_LAYERS).forEach(layer => {
                 if (layer.instance && layer.isEnabled) {
-
                     layer.instance.setZIndex(layer.zIndex);
+                    if (layer.instance.getElement) {
+                        const el = layer.instance.getElement();
+                        if (el) {
+                            el.classList.add('geo-portal-layer');
+                            el.style.pointerEvents = 'none';
+                            el.style.setProperty('pointer-events', 'none', 'important');
+                        }
+                    }
                 }
             });
         };
 
         window.W.map.events.register("moveend", window.W.map, fixZIndex);
-        setInterval(fixZIndex, 5000);
-
+        setInterval(fixZIndex, 1000);
         injectIntoWmeLayerSwitcher();
     }
 
@@ -338,7 +313,5 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         Geoportal_bootstrap();
     });
 
-    // ---------- START ----------
     addStyles();
-
 })();
