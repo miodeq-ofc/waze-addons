@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.3.2
+// @version            1.3.3
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.3.2';
+const SCRIPT_VERSION = '1.3.3';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -32,7 +32,7 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Added Speed Limits Highlighter! Change in script settings",
+        "Fixed Average Speed Camera on map",
         "Other bug fixes"
     ];
 
@@ -921,75 +921,64 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
 
                 const layer = window.OPP_LAYER_INSTANCE;
 
-                function scan() {
-                    const currentEnabled = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
-                    if (!layer || !currentEnabled) {
-                        layer?.removeAllFeatures();
-                        return;
+     function scan() {
+        if (!layer || !OPP_ENABLED) {
+            layer?.removeAllFeatures();
+            return;
+        }
+
+        layer.removeAllFeatures();
+
+        const zoom = W.map.getZoom();
+        const iconSize = zoom >= 17 ? 50 : 40;
+
+        const segments = Object.values(W.model.segments.objects);
+
+        segments.forEach(seg => {
+            const geom = seg.getOLGeometry();
+            if (!geom) return;
+            const points = geom.getVertices();
+            const attr = seg.attributes;
+
+            const isOPP =
+                ((attr.fwdFlags === 1 || attr.fwdFlags === 5) && attr.fwdDirection) ||
+                ((attr.revFlags === 1 || attr.revFlags === 5) && attr.revDirection);
+            if (!isOPP) return;
+
+            // LINES OPP
+            const lineFeature = new OpenLayers.Feature.Vector(
+                new OpenLayers.Geometry.LineString(points),
+                null,
+                { strokeColor: "#0000FF", strokeWidth: 15, strokeOpacity: 0.4, graphicZIndex: 3000 }
+            );
+            layer.addFeatures([lineFeature]);
+
+            // IMG  OPP
+            const interval = 10;
+            for (let i = 0; i < points.length; i += interval) {
+                const pointFeature = new OpenLayers.Feature.Vector(
+                    new OpenLayers.Geometry.Point(points[i].x, points[i].y),
+                    null,
+                    {
+                        externalGraphic: "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/opp.png",
+                        graphicWidth: iconSize,
+                        graphicHeight: iconSize,
+                        graphicXOffset: -iconSize/2,
+                        graphicYOffset: -iconSize/2,
+                        graphicOpacity: 1,
+                        graphicZIndex: 9999999999
                     }
-
-                    const bounds = W.map.getBounds();
-                    const zoom = W.map.getZoom();
-
-                    if (zoom < 15) {
-                        layer.removeAllFeatures();
-                        return;
-                    }
-
-                    layer.removeAllFeatures();
-
-                    const pixelOffset = 8;
-                    const coordinateOffset = pixelOffset * W.map.getResolution();
-                    const config = getSpeedConfig();
-                    const othersColor = localStorage.getItem(SPEED_OTHERS_COLOR_STORAGE_KEY) || '#000000';
-
-                    const segments = Object.values(W.model.segments.objects);
-
-                    const featuresToAdd = [];
-
-                    segments.forEach(seg => {
-                        const geom = seg.getOLGeometry();
-                        if (!geom) return;
-
-                        const extent = geom.getExtent();
-                        if (!OpenLayers.BBox.intersects(bounds, extent)) {
-                            return;
-                        }
-
-                        const points = geom.getVertices();
-                        const attr = seg.attributes;
-
-                        // FWD
-                        if (attr.fwdDirection && attr.fwdMaxSpeed !== null && attr.fwdMaxSpeed !== undefined) {
-                            const speedMatch = config.find(c => c.speed === attr.fwdMaxSpeed);
-                            const colorToUse = speedMatch ? speedMatch.color : othersColor;
-                            const fwdPoints = shiftGeometry(points, coordinateOffset, false);
-                            featuresToAdd.push(new OpenLayers.Feature.Vector(
-                                new OpenLayers.Geometry.LineString(fwdPoints),
-                                null,
-                                { strokeColor: colorToUse, strokeWidth: 6, strokeOpacity: 0.7, graphicZIndex: 3001 }
-                            ));
-                        }
-
-                        //  REV
-                        if (attr.revDirection && attr.revMaxSpeed !== null && attr.revMaxSpeed !== undefined) {
-                            const speedMatch = config.find(c => c.speed === attr.revMaxSpeed);
-                            const colorToUse = speedMatch ? speedMatch.color : othersColor;
-                            const revPoints = shiftGeometry(points, coordinateOffset, true);
-                            featuresToAdd.push(new OpenLayers.Feature.Vector(
-                                new OpenLayers.Geometry.LineString(revPoints),
-                                null,
-                                { strokeColor: colorToUse, strokeWidth: 6, strokeOpacity: 0.7, graphicZIndex: 3001 }
-                            ));
-                        }
-                    });
-                    layer.addFeatures(featuresToAdd);
-                }
-
-                scan();
-                W.map.events.register("moveend", null, scan);
-                W.map.events.register("zoomend", null, scan);
+                );
+                layer.addFeatures([pointFeature]);
             }
+        });
+    }
+
+    scan();
+    W.map.events.register("moveend", null, scan);
+    W.map.events.register("zoomend", null, scan);
+}
+
 
             // ---------- LOCK Overlay Function ----------
             function initLockOverlay() {
