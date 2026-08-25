@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.3.3
+// @version            1.3.4
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.3.3';
+const SCRIPT_VERSION = '1.3.4';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -32,7 +32,7 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Fixed Average Speed Camera on map",
+        "Expanded Lock Rank 1 Highlighter to Low Locks Feature",
         "Other bug fixes"
     ];
 
@@ -981,86 +981,197 @@ style="width:80px; font-size:13px;" title="Delay in ms"> ms
 
 
             // ---------- LOCK Overlay Function ----------
-            function initLockOverlay() {
-                if (!window.W || !W.map || !W.model) {
-                    setTimeout(initLockOverlay, 500);
-                    return;
+function initLockOverlay() {
+    if (!window.W || !W.map || !W.model) {
+        setTimeout(initLockOverlay, 500);
+        return;
+    }
+
+    if (!LOCK_ENABLED) {
+        if (window.LOCK_LAYER_INSTANCE) {
+            window.LOCK_LAYER_INSTANCE.removeAllFeatures();
+        }
+
+        if (window.LOCK_BLINK_ANIMATION) {
+            cancelAnimationFrame(window.LOCK_BLINK_ANIMATION);
+            window.LOCK_BLINK_ANIMATION = null;
+        }
+
+        return;
+    }
+
+    if (!window.LOCK_LAYER_INSTANCE) {
+        window.LOCK_LAYER_INSTANCE =
+            new OpenLayers.Layer.Vector("LOCK Overlay Layer");
+
+        W.map.addLayer(window.LOCK_LAYER_INSTANCE);
+    }
+
+    const layer = window.LOCK_LAYER_INSTANCE;
+
+    let blinkingFeatures = [];
+
+    function scan() {
+        if (!layer || !LOCK_ENABLED) {
+            layer?.removeAllFeatures();
+            blinkingFeatures = [];
+            return;
+        }
+
+        layer.removeAllFeatures();
+        blinkingFeatures = [];
+
+        const segments = Object.values(W.model.segments.objects);
+
+        segments.forEach(seg => {
+            const geom = seg.getOLGeometry();
+
+            if (!geom) return;
+
+            if (!shouldHighlight(seg)) return;
+
+            const points = geom.getVertices();
+
+            if (!points || points.length < 2) return;
+
+            const attr = seg.attributes;
+
+            let lockValue = attr.lockRank;
+
+            if (lockValue === null || lockValue === undefined) {
+                const rank = attr.rank ?? 0;
+
+                if (rank === 0) {
+                    lockValue = 0;
+                } else if (rank === 1) {
+                    lockValue = 1;
+                } else if (rank === 2) {
+                    lockValue = 2;
+                } else {
+                    lockValue = 0;
                 }
-
-                if (!LOCK_ENABLED) {
-                    window.LOCK_LAYER_INSTANCE?.removeAllFeatures();
-                    return;
-                }
-
-                if (!window.LOCK_LAYER_INSTANCE) {
-                    window.LOCK_LAYER_INSTANCE = new OpenLayers.Layer.Vector("LOCK Overlay Layer");
-                    W.map.addLayer(window.LOCK_LAYER_INSTANCE);
-                }
-
-                const layer = window.LOCK_LAYER_INSTANCE;
-
-                function scan() {
-                    if (!layer || !LOCK_ENABLED) {
-                        layer?.removeAllFeatures();
-                        return;
-                    }
-
-                    layer.removeAllFeatures();
-
-                    const segments = Object.values(W.model.segments.objects);
-
-                    segments.forEach(seg => {
-                        const geom = seg.getOLGeometry();
-                        if (!geom) return;
-
-                        if (!shouldHighlight(seg)) return;
-
-                        const points = geom.getVertices();
-
-                        const lineFeature = new OpenLayers.Feature.Vector(
-                            new OpenLayers.Geometry.LineString(points),
-                            null,
-                            {
-                                strokeColor: "#ff0000",
-                                strokeWidth: 15,
-                                strokeOpacity: 0.4,
-                                graphicZIndex: 3000
-                            }
-                        );
-                        layer.addFeatures([lineFeature]);
-
-                        // ICON
-                        const zoom = W.map.getZoom();
-                        const iconSize = zoom >= 17 ? 50 : 40;
-
-                        if (points.length > 0) {
-                            const midIndex = Math.floor(points.length / 2);
-                            const midPoint = points[midIndex];
-
-                            const pointFeature = new OpenLayers.Feature.Vector(
-                                new OpenLayers.Geometry.Point(midPoint.x, midPoint.y),
-                                null,
-                                {
-                                    externalGraphic: "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/lock.png",
-                                    graphicWidth: iconSize,
-                                    graphicHeight: iconSize,
-                                    graphicXOffset: -iconSize / 2,
-                                    graphicYOffset: -iconSize / 2,
-                                    graphicOpacity: 0.9,
-                                    graphicZIndex: 99999999999999999999999
-                                }
-                            );
-
-                            layer.addFeatures([pointFeature]);
-                        }
-
-                    });
-                }
-
-                scan();
-                W.map.events.register("moveend", null, scan);
-                W.map.events.register("zoomend", null, scan);
             }
+
+            // more value road types
+            const bigRoadTypes = [2, 3, 4, 6, 7];
+
+            const shouldBlink =
+                bigRoadTypes.includes(attr.roadType) &&
+                lockValue === 0;
+
+            // ==========================================
+            // RED OVERLAY
+            // ==========================================
+
+            const lineFeature = new OpenLayers.Feature.Vector(
+                new OpenLayers.Geometry.LineString(points),
+                null,
+                {
+                    strokeColor: "#ff0000",
+                    strokeWidth: 15,
+
+                    strokeOpacity: 0.4,
+
+                    graphicZIndex: 3000
+                }
+            );
+
+            layer.addFeatures([lineFeature]);
+
+            if (shouldBlink) {
+                blinkingFeatures.push(lineFeature);
+            }
+
+            // ==========================================
+            // ICON LOCK
+            // ==========================================
+
+            const zoom = W.map.getZoom();
+
+            const iconSize = zoom >= 17 ? 50 : 40;
+
+            const midIndex = Math.floor(points.length / 2);
+            const midPoint = points[midIndex];
+
+            const pointFeature = new OpenLayers.Feature.Vector(
+                new OpenLayers.Geometry.Point(
+                    midPoint.x,
+                    midPoint.y
+                ),
+                null,
+                {
+                    externalGraphic:
+                        "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/lock.png",
+
+                    graphicWidth: iconSize,
+                    graphicHeight: iconSize,
+
+                    graphicXOffset: -iconSize / 2,
+                    graphicYOffset: -iconSize / 2,
+
+                    graphicOpacity: 0.9,
+
+                    graphicZIndex: 999999
+                }
+            );
+
+            layer.addFeatures([pointFeature]);
+        });
+
+        layer.redraw();
+    }
+
+
+    function animateBlink() {
+        if (!LOCK_ENABLED || !layer) {
+            window.LOCK_BLINK_ANIMATION = null;
+            return;
+        }
+
+
+        const visible =
+            Math.floor(Date.now() / 400) % 2 === 0;
+
+        const opacity = visible ? 0.4 : 0;
+
+        blinkingFeatures.forEach(feature => {
+            if (feature.style) {
+                feature.style.strokeOpacity = opacity;
+            }
+        });
+
+        layer.redraw();
+
+        window.LOCK_BLINK_ANIMATION =
+            requestAnimationFrame(animateBlink);
+    }
+
+    scan();
+
+
+    if (!window.LOCK_BLINK_ANIMATION) {
+        window.LOCK_BLINK_ANIMATION =
+            requestAnimationFrame(animateBlink);
+    }
+
+
+    if (!window.LOCK_OVERLAY_EVENTS_REGISTERED) {
+
+        W.map.events.register(
+            "moveend",
+            null,
+            scan
+        );
+
+        W.map.events.register(
+            "zoomend",
+            null,
+            scan
+        );
+
+        window.LOCK_OVERLAY_EVENTS_REGISTERED = true;
+    }
+}
 
                         // ---------- Speed Overlay Function ----------
             function initSpeedOverlay() {
