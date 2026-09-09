@@ -40,7 +40,7 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
 
     const GEOPORTAL_CATEGORIES = {
         "Ortofoto / OSM": ["Ortofoto", "Ortofoto szczegółowa", "OSM"],
-        "Adresy i Ulice": ["Adresy", "Ulice"], // "Place"
+        "Adresy i Ulice": ["Adresy" , "Ulice" , "Place"],
         "Podział Administracyjny": ["Podział administracyjny", "Miasta", "Gminy", "Powiaty", "Województwa", "Granica PL"],
         "Topografia": ["Drogi", "Przejazdy kolejowe", "Obiekty topograficzne"],
         "BDOT": ["BDOT - Gruntowa", "BDOT - Utwardzona", "BDOT - Twarda", "BDOT - Główna", "BDOT - W budowie", "BDOT - Jezdnia", "BDOT - Autostrada", "BDOT - Numer drogi"]
@@ -262,8 +262,8 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         createGeoLayer("OSM", GEOPORTAL_SERVICES.osm, "osm", "image/png", { zIndex: 0 });
 
         createGeoLayer("Adresy", GEOPORTAL_SERVICES.adresy, "A07_Punkty_adresowe", "image/png", { zIndex: 0 });
-        createGeoLayer("Ulice", GEOPORTAL_SERVICES.adresy, "A08_Ulice", "image/png", { zIndex: 3000 });
-//        createGeoLayer("Place", GEOPORTAL_SERVICES.adresy, "A09_Place", "image/png", { zIndex: 3001 });
+        createGeoLayer("Ulice", GEOPORTAL_SERVICES.adresy, "A08_Ulice_Linie", "image/png", { zIndex: 3000 });
+        createGeoLayer("Place", GEOPORTAL_SERVICES.adresy, "A08_Ulice_Powierzchnie", "image/png", { zIndex: 3001 });
         createGeoLayer("Przejazdy kolejowe", GEOPORTAL_SERVICES.rail, "PMT_Linie_Kolejowe_Sp__z_o_o_", "image/png", { zIndex: 3000 });
         createGeoLayer("Drogi", GEOPORTAL_SERVICES.mileage, "planowane,wbudowie,pikietaz,drugorzedne,glowne,ekspresowe,autostrady", "image/png", { zIndex: 3000 });
         createGeoLayer("Podział administracyjny", GEOPORTAL_SERVICES.parcels, "dzialki,numery_dzialek", "image/png", { zIndex: 0 });
