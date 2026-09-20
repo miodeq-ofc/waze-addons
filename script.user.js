@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.3.4
+// @version            1.3.5
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.3.4';
+const SCRIPT_VERSION = '1.3.5';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -32,7 +32,8 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Expanded Lock Rank 1 Highlighter to Low Locks Feature",
+        "New script GUI",
+        "Removed Auto House Numbers feature with custom delay",
         "Other bug fixes"
     ];
 
@@ -200,7 +201,7 @@ opacity: 1;
 
 .lock-help {
 position: relative;
-font-size: 17px;
+font-size: 20px !important;
 cursor: help;
 color: var(--primary);
 display: inline-flex;
@@ -216,8 +217,8 @@ color: var(--content_p1);
 content: "Shows segments with lower lock level than required for the current road type. Sync with Poland segments Locks Level and click the button next to the Save button to fix all visible on the map.";
 position: absolute;
 bottom: 125%;
-left: 50%;
-transform: translateX(-50%);
+right: 100%;
+
 
 background: var(--background_default);
 color: var(--content_p1);
@@ -598,7 +599,93 @@ border-color: var(--content_p2) !important;
 /* --- DARK MODE CSS END --- */
 
 
+        .wme-addons-feature-button {
+            box-sizing: border-box;
+            width: 97%;
+            min-height: 44px;
 
+            margin: 3px 0;
+            padding: 6px 12px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 12px;
+
+            border: 3px solid #d32f2f;
+            border-radius: 12px;
+
+            background: var(--background_default);
+            color: var(--content_p1);
+
+            cursor: pointer;
+            user-select: none;
+
+            transition:
+                border-color 0.15s ease,
+                background-color 0.15s ease,
+                box-shadow 0.15s ease,
+                transform 0.1s ease;
+        }
+
+        .wme-addons-feature-button:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .wme-addons-feature-button:active {
+            transform: scale(0.99);
+        }
+
+        .wme-addons-feature-button-title {
+            display: flex;
+            align-items: center;
+
+            gap: 10px;
+            min-width: 0;
+            font-size: 14px;
+        }
+
+        .wme-addons-feature-button-title > i:first-child {
+            width: 22px;
+
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .wme-addons-feature-button-title .lock-help {
+            width: auto;
+
+            margin-left: 2px;
+            font-size: 13px;
+        }
+
+        .wme-addons-feature-button-status {
+            flex-shrink: 0;
+
+            min-width: 48px;
+
+            padding: 5px 9px;
+
+            border-radius: 8px;
+
+            text-align: center;
+
+            font-size: 12px;
+            font-weight: 700;
+
+            background: #d32f2f;
+            color: #ffffff;
+        }
+
+        .wme-addons-feature-button.wme-addons-feature-enabled {
+            border-color: #2e9b4b;
+        }
+
+        .wme-addons-feature-button.wme-addons-feature-enabled
+        .wme-addons-feature-button-status {
+            background: #2e9b4b;
+        }
 
 `;
         document.head.appendChild(style);
@@ -782,29 +869,154 @@ setTimeout(replaceWazeLogo, 300);
             const toolboxDiv = $('<div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>');
 
 
-            // OPP Overlay checkbox
-            const oppOverlayCheckbox = $('<wz-checkbox id="opp-overlay-toggle">Show Average Speed Camera</wz-checkbox>');
-            toolboxDiv.append(oppOverlayCheckbox);
+            const oppOverlayCheckbox = $(`
+    <div
+        id="opp-overlay-toggle"
+        class="wme-addons-feature-button"
+        role="checkbox"
+        aria-checked="false"
+        tabindex="0"
+    >
+        <div class="wme-addons-feature-button-title">
+            <i class="fa fa-camera"></i>
+            <span>Show Average Speed Camera</span>
+        </div>
 
-            // LOCK Overlay checkbox
-            const lockOverlayCheckbox = $('<wz-checkbox id="lock-overlay-toggle">Show Low Locks Segments <i class="fa fa-question-circle lock-help"></i></wz-checkbox>');
-            toolboxDiv.append(lockOverlayCheckbox);
-
-
-            // Auto House Numbers row
-            const autoDomDiv = $(`
-<div style="display:flex; align-items:center; gap:6px;">
-<wz-checkbox id="auto-dom-toggle">Auto House Numbers</wz-checkbox>
-<i class="fa fa-question-circle auto-dom-help"></i>
-<input type="number" id="auto-dom-timer" min="100" max="10000" step="100" value="2000"
-style="width:80px; font-size:13px;" title="Delay in ms"> ms
-</div>
+        <!--<div class="wme-addons-feature-button-status">OFF</div> -->
+    </div>
 `);
-            toolboxDiv.append(autoDomDiv);
 
-            // Speed Overlay checkbox
-            const speedOverlayCheckbox = $('<wz-checkbox id="speed-overlay-toggle">Highlight Speed Limits</wz-checkbox>');
+            const lockOverlayCheckbox = $(`
+    <div
+        id="lock-overlay-toggle"
+        class="wme-addons-feature-button"
+        role="checkbox"
+        aria-checked="false"
+        tabindex="0"
+    >
+        <div class="wme-addons-feature-button-title">
+            <i class="fa fa-lock"></i>
+            <span>Show Low Locks Segments</span>
+            <i class="fa fa-question-circle lock-help"></i>
+        </div>
+
+        <!--<div class="wme-addons-feature-button-status">OFF</div>-->
+    </div>
+`);
+
+            const speedOverlayCheckbox = $(`
+    <div
+        id="speed-overlay-toggle"
+        class="wme-addons-feature-button"
+        role="checkbox"
+        aria-checked="false"
+        tabindex="0"
+    >
+        <div class="wme-addons-feature-button-title">
+            <i class="fa fa-tachometer"></i>
+            <span>Highlight Speed Limits</span>
+        </div>
+
+        <!--<div class="wme-addons-feature-button-status">OFF</div>-->
+    </div>
+`);
+
+            toolboxDiv.append(oppOverlayCheckbox);
+            toolboxDiv.append(lockOverlayCheckbox);
             toolboxDiv.append(speedOverlayCheckbox);
+
+
+            if (!document.getElementById('wme-addons-feature-button-style')) {
+                const style = document.createElement('style');
+
+                style.id = 'wme-addons-feature-button-style';
+
+                style.textContent = `
+
+    `;
+
+                document.head.appendChild(style);
+            }
+
+
+            function updateFeatureButtonState(button, enabled) {
+                button
+                    .prop('checked', enabled)
+                    .attr('aria-checked', enabled ? 'true' : 'false')
+                    .toggleClass('wme-addons-feature-enabled', enabled);
+
+                button
+                    .find('.wme-addons-feature-button-status')
+                    .text(enabled ? 'ON' : 'OFF');
+            }
+
+            oppOverlayCheckbox.on('click', function (e) {
+
+                if ($(e.target).closest('.lock-help').length) {
+                    return;
+                }
+
+                const enabled = !$(this).prop('checked');
+
+                updateFeatureButtonState($(this), enabled);
+
+                $(this).trigger('change');
+            });
+
+
+            lockOverlayCheckbox.on('click', function (e) {
+
+                if ($(e.target).closest('.lock-help').length) {
+                    return;
+                }
+
+                const enabled = !$(this).prop('checked');
+
+                updateFeatureButtonState($(this), enabled);
+
+                $(this).trigger('change');
+            });
+
+
+            speedOverlayCheckbox.on('click', function () {
+
+                const enabled = !$(this).prop('checked');
+
+                updateFeatureButtonState($(this), enabled);
+
+                $(this).trigger('change');
+            });
+
+
+
+
+            const oppInitialState =
+                  localStorage.getItem('wme-opp-overlay-enabled') === 'true';
+
+            const lockInitialState =
+                  localStorage.getItem('wme-lock-overlay-enabled') === 'true';
+
+            const speedInitialState =
+                  localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+
+            updateFeatureButtonState(
+                oppOverlayCheckbox,
+                oppInitialState
+            );
+
+            updateFeatureButtonState(
+                lockOverlayCheckbox,
+                lockInitialState
+            );
+
+            updateFeatureButtonState(
+                speedOverlayCheckbox,
+                speedInitialState
+            );
+
+
+
+
 
             // --- Dynamic Speed Config Panel ---
             const speedConfigContainer = $('<div id="speed-config-container" style="display:none; margin-top:10px; padding:10px; background: rgba(128,128,128,0.1); border-radius:8px; font-size:12px;"></div>');
@@ -1314,7 +1526,6 @@ function initLockOverlay() {
 <li>Dark / Light mode</li>
 <li>Custom theme color</li>
 <li>Speed Limits Highlighter</li>
-<li>Auto House nuber with own delay</li>
 <li>Lower Lock Segments Highlighter – fix them in one click (only 🇵🇱)</li>
 <li>Show segments with Speed Camera</li>
 </ul>
@@ -1496,7 +1707,7 @@ ${CHANGELOG.map(item => `<li style="margin-bottom:4px;">${item}</li>`).join("")}
 
 <div style="margin-bottom:8px;">
 <h3 style="margin:0;">WME Addons Updated!</h3>
-<div style="font-size:13px; opacity:0.8;">Version ${SCRIPT_VERSION}</div>
+<div style="font-size:13px; opacity:0.8;">Version ${SCRIPT_VERSION} · by Miodeq</div>
 </div>
 
 <div style="border-top:1px solid var(--primary); margin:10px 0;"></div>
@@ -1561,135 +1772,6 @@ ${changelogHTML}
     });
 
 
-
-    // ---------- Auto toggle House ----------
-    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
-        console.log('SDK initialized — attaching continuous auto DOM');
-
-        let autoDomInterval = null;
-
-        function isSegmentSelected() {
-            return (
-                W.selectionManager &&
-                typeof W.selectionManager.hasSelectedFeatures === 'function' &&
-                W.selectionManager.hasSelectedFeatures()
-            );
-        }
-
-        function clickAddHouseNumber() {
-
-            const btn = document.querySelector(
-                '#segment-edit-general wz-button i.w-icon-home'
-            );
-
-            if (btn) {
-                btn.closest("wz-button").click();
-                return true;
-            }
-
-
-            const event = new KeyboardEvent("keydown", {
-                key: "h",
-                code: "KeyH",
-                bubbles: true
-            });
-
-            document.dispatchEvent(event);
-
-            return true;
-        }
-
-        function waitForRHNInputAndFocus(callback, timeout = 800) {
-            const start = Date.now();
-            function check() {
-                const nextInput = document.querySelector("input.rapidHN.next");
-                if (nextInput) {
-                    setTimeout(callback, 50);
-                    return;
-                }
-                if (Date.now() - start > timeout) {
-                    callback();
-                    return;
-                }
-                requestAnimationFrame(check);
-            }
-            check();
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() !== 'h') return;
-
-            const checkbox = document.getElementById('auto-dom-toggle');
-            if (!checkbox || !checkbox.checked) return;
-
-            if (!isSegmentSelected()) {
-                console.log('Auto DOM: no segment selected');
-                return;
-            }
-
-
-            if (autoDomInterval) {
-                clearInterval(autoDomInterval);
-                autoDomInterval = null;
-            }
-
-            const timerInput = document.getElementById('auto-dom-timer');
-            let delay = 2000;
-            if (timerInput) {
-                delay = parseInt(timerInput.value, 10);
-                if (isNaN(delay) || delay < 100) delay = 100;
-                if (delay > 10000) delay = 10000;
-                delay = Math.round(delay / 100) * 100;
-            }
-
-            autoDomInterval = setInterval(() => {
-                if (!isSegmentSelected()) {
-                    clearInterval(autoDomInterval);
-                    autoDomInterval = null;
-                    console.log('Auto DOM stopped — segment deselected');
-                    return;
-                }
-
-                waitForRHNInputAndFocus(() => {
-                    const clicked = clickAddHouseNumber();
-                    if (!clicked) console.log("Auto DOM: add button not found");
-                });
-
-            }, delay);
-        });
-
-
-        function stopAutoDom(reason) {
-            if (autoDomInterval) {
-                clearInterval(autoDomInterval);
-                autoDomInterval = null;
-
-                console.log('Auto DOM stopped:', reason);
-
-                // reset focus / RHN state
-                const active = document.activeElement;
-                if (active) active.blur();
-            }
-        }
-
-        document.addEventListener('mousedown', () => {
-            stopAutoDom('mouse click');
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === "Escape") {
-                stopAutoDom('ESC');
-            }
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === "Escape" && autoDomInterval) {
-                clearInterval(autoDomInterval);
-                autoDomInterval = null;
-                console.log('Auto DOM stopped by ESC');
-            }
-        });
-    });
     // ---------- LOCK FIX TOOL (Toolbox style) ----------
 
     function getRequiredLock(attr) {
