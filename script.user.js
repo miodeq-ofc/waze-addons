@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.3.5
+// @version            1.4.1
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.3.5';
+const SCRIPT_VERSION = '1.4.1';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -32,7 +32,7 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "New script GUI",
+        "New GUI design!",
         "Removed Auto House Numbers feature with custom delay",
         "Other bug fixes"
     ];
@@ -91,17 +91,17 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
         updateChipColor(savedColor);
     }
 
-function restoreColorFromStorage() {
-    const saved = localStorage.getItem(COLOR_STORAGE_KEY);
-    if (saved) {
-        document.documentElement.style.setProperty('--primary', saved);
-        document.documentElement.style.setProperty('--primary_variant', saved);
-        updateChipColor(saved);
-    }
+    function restoreColorFromStorage() {
+        const saved = localStorage.getItem(COLOR_STORAGE_KEY);
+        if (saved) {
+            document.documentElement.style.setProperty('--primary', saved);
+            document.documentElement.style.setProperty('--primary_variant', saved);
+            updateChipColor(saved);
+        }
 
-    const darkEnabled = localStorage.getItem(DARK_MODE_STORAGE_KEY) === 'true';
-    applyDarkMode(darkEnabled);
-}
+        const darkEnabled = localStorage.getItem(DARK_MODE_STORAGE_KEY) === 'true';
+        applyDarkMode(darkEnabled);
+    }
 
 
 
@@ -114,6 +114,12 @@ function restoreColorFromStorage() {
 border-bottom: 1px solid var(--content_p1);
 padding-bottom: 4px;
 margin-bottom: 10px;
+}
+#addons-settings
+{
+box-sizing: border-box;
+padding: 5px;
+width: 95%;
 }
 
 .counter--ZcIEX {
@@ -203,7 +209,7 @@ opacity: 1;
 position: relative;
 font-size: 20px !important;
 cursor: help;
-color: var(--primary);
+
 display: inline-flex;
 align-items: center;
 margin: 0px 0px 3px 7px;
@@ -596,12 +602,19 @@ border-color: var(--content_p2) !important;
 [wz-theme="dark"] #editing-activity .mercury-bg { opacity: .03; }
 [wz-theme="dark"] .wz-chat-header-btn { filter: invert(1); }
 [wz-theme="dark"] .wz-chat-header-btn .icon:hover { background-color: white !important; }
+
+
+.autocomplete--Od4Qq
+{
+    margin-top: 4px;
+    }
+
 /* --- DARK MODE CSS END --- */
 
 
         .wme-addons-feature-button {
             box-sizing: border-box;
-            width: 97%;
+            width: 100%;
             min-height: 44px;
 
             margin: 3px 0;
@@ -616,7 +629,7 @@ border-color: var(--content_p2) !important;
             border: 3px solid #d32f2f;
             border-radius: 12px;
 
-            background: var(--background_default);
+            background: rgba(255,0,0,0.1);
             color: var(--content_p1);
 
             cursor: pointer;
@@ -629,9 +642,6 @@ border-color: var(--content_p2) !important;
                 transform 0.1s ease;
         }
 
-        .wme-addons-feature-button:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
 
         .wme-addons-feature-button:active {
             transform: scale(0.99);
@@ -662,30 +672,136 @@ border-color: var(--content_p2) !important;
 
         .wme-addons-feature-button-status {
             flex-shrink: 0;
-
-            min-width: 48px;
-
-            padding: 5px 9px;
-
+            min-width: 33px;
+            padding: 2px;
             border-radius: 8px;
-
             text-align: center;
-
-            font-size: 12px;
-            font-weight: 700;
-
+            font-size: 10px;
+            font-weight: bold;
             background: #d32f2f;
             color: #ffffff;
         }
 
         .wme-addons-feature-button.wme-addons-feature-enabled {
-            border-color: #2e9b4b;
+            border-color: #1a995c;
+            background: rgba(26,153,92,0.1)
         }
 
         .wme-addons-feature-button.wme-addons-feature-enabled
         .wme-addons-feature-button-status {
-            background: #2e9b4b;
+            background: #1a995c;
         }
+
+
+
+
+
+
+/* --- THEME MODE SWITCH --- */
+
+.wme-addons-theme-switch {
+    position: relative;
+    display: block;
+    width: 76px;
+    height: 38px;
+    flex-shrink: 0;
+    cursor: pointer;
+    margin: 0;
+}
+
+.wme-addons-theme-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.wme-addons-theme-slider {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    border: 2px solid var(--content_p3);
+    padding: 4px;
+    box-sizing: border-box;
+
+    background: rgba(255, 207, 0, 0.2);
+    border-radius: 999px;
+
+    transition:
+        background 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+.wme-addons-theme-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 30px;
+    height: 30px;
+
+    border-radius: 50%;
+
+    background: #ffb217;
+    color: #ffffff;
+
+    font-size: 17px;
+
+    transform: translateX(0);
+
+    transition:
+        transform 0.3s ease,
+        background 0.3s ease,
+        color 0.3s ease;
+}
+
+/* DARK MODE */
+
+.wme-addons-theme-switch input:checked + .wme-addons-theme-slider {
+    background: rgba(18, 68, 184, 0.2);
+}
+
+.wme-addons-theme-switch input:checked + .wme-addons-theme-slider .wme-addons-theme-icon {
+    background: #1244b8;
+    color: #ffffff;
+
+    transform: translateX(34px);
+}
+
+/* HOVER */
+
+.wme-addons-theme-switch:hover .wme-addons-theme-slider {
+    filter: brightness(1.05);
+}
+
+.wme-addons-theme-switch:hover .wme-addons-theme-icon {
+    transform: translateX(0) scale(1.05);
+}
+
+.wme-addons-theme-switch:hover input:checked + .wme-addons-theme-slider .wme-addons-theme-icon {
+    transform: translateX(34px) scale(1.05);
+}
+
+
+
+.default-button-color
+{
+     padding:2px 6px;
+     cursor:pointer;
+     font-size:12px;
+     height: 31px;
+     box-sizing: border-box;
+     border: 2px solid var(--content_p3);
+     border-radius: 5px;
+     background: var(--background_default);
+     transition: border 0.3s all;
+     color: var(--content_p1);
+}
+.default-button-color:hover
+{
+     border: 2px solid var(--primary);
+}
 
 `;
         document.head.appendChild(style);
@@ -823,7 +939,7 @@ setTimeout(replaceWazeLogo, 300);
             tabLabel.innerText = 'WME Addons';
             tabLabel.title = 'WME Addons Settings';
 
-            tabPane.innerHTML = '<div id="addons-settings" style="margin:10px;"></div>';
+            tabPane.innerHTML = '<div id="addons-settings"></div>';
             const scriptContentPane = $('#addons-settings');
 
             scriptContentPane.append('<h2 style="margin-top:0;">WME Addons</h2>');
@@ -832,14 +948,14 @@ setTimeout(replaceWazeLogo, 300);
             const settingsDiv = $('<div style="margin-top:10px;"></div>');
 
             // --- Theme Settings Row (Color + Dark Mode) ---
-            const themeSettingsRow = $('<div style="display:flex; align-items:center; justify-content:space-between; gap:15px; margin-bottom:15px; padding:10px; background: rgba(128,128,128,0.1); border-radius:8px;"></div>');
+            const themeSettingsRow = $('<div style="display:flex; align-items:center; justify-content:space-between; gap:15px; margin-bottom:10px; padding:10px; background: rgba(128,128,128,0.1); border-radius:8px;"></div>');
 
             const colorGroup = $('<div style="display:flex; align-items:center; gap:8px;"></div>');
-            colorGroup.append('<strong style="font-size:13px;">Theme</strong>');
+            //colorGroup.append('<strong style="font-size:13px;">Theme</strong>');
 
             const currentColor = localStorage.getItem(COLOR_STORAGE_KEY) || DEFAULT_COLOR;
-            const colorInput = $(`<input type="color" id="wme-addons-color-picker" value="${currentColor}" style="width:30px; height:30px; cursor:pointer; border:none; background:none;">`);
-            const resetButton = $('<button type="button" style="padding:2px 6px; cursor:pointer; font-size:11px;">Default</button>');
+            const colorInput = $(`<input type="color" id="wme-addons-color-picker" value="${currentColor}" style="width:38px; height:38px; cursor:pointer; border:none; background:none;">`);
+            const resetButton = $('<button type="button" class="default-button-color">Default</button>');
 
             colorInput.on('input', () => {
                 applyThemeColor(colorInput.val(), 'settings');
@@ -852,21 +968,47 @@ setTimeout(replaceWazeLogo, 300);
 
             colorGroup.append(colorInput).append(resetButton);
 
-            const darkGroup = $('<div style="display:flex; align-items:center; gap:8px;"></div>');
-            const darkModeCheckbox = $('<wz-checkbox id="dark-mode-toggle">Dark Mode</wz-checkbox>');
-            darkModeCheckbox.prop('checked', localStorage.getItem(DARK_MODE_STORAGE_KEY) === 'true');
+            const darkGroup = $(`
+    <label class="wme-addons-theme-switch">
+        <input type="checkbox" id="dark-mode-toggle">
+        <span class="wme-addons-theme-slider">
+            <i class="fa fa-sun-o wme-addons-theme-icon"></i>
+        </span>
+    </label>
+`);
+
+            const darkModeCheckbox = darkGroup.find('#dark-mode-toggle');
+
+            darkModeCheckbox.prop(
+                'checked',
+                localStorage.getItem(DARK_MODE_STORAGE_KEY) === 'true'
+            );
+
+            function updateThemeSwitchIcon() {
+                const icon = darkGroup.find('.wme-addons-theme-icon');
+
+                if (darkModeCheckbox.prop('checked')) {
+                    icon.removeClass('fa-sun-o').addClass('fa-moon-o');
+                } else {
+                    icon.removeClass('fa-moon-o').addClass('fa-sun-o');
+                }
+            }
+
+            updateThemeSwitchIcon();
 
             darkModeCheckbox.on('change', () => {
                 applyDarkMode(darkModeCheckbox.prop('checked'), 'settings');
+                updateThemeSwitchIcon();
             });
 
-            darkGroup.append(darkModeCheckbox);
+            themeSettingsRow.append(colorGroup).append(darkGroup);
+            settingsDiv.append(themeSettingsRow);
 
             themeSettingsRow.append(colorGroup).append(darkGroup);
             settingsDiv.append(themeSettingsRow);
 
             settingsDiv.append('<h4>Settings</h4>');
-            const toolboxDiv = $('<div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>');
+            const toolboxDiv = $('<div style="margin-top:5px; display:flex; flex-direction:column; gap:6px;"></div>');
 
 
             const oppOverlayCheckbox = $(`
@@ -882,7 +1024,7 @@ setTimeout(replaceWazeLogo, 300);
             <span>Show Average Speed Camera</span>
         </div>
 
-        <!--<div class="wme-addons-feature-button-status">OFF</div> -->
+        <!--<div class="wme-addons-feature-button-status">OFF</div>-->
     </div>
 `);
 
@@ -930,10 +1072,6 @@ setTimeout(replaceWazeLogo, 300);
                 const style = document.createElement('style');
 
                 style.id = 'wme-addons-feature-button-style';
-
-                style.textContent = `
-
-    `;
 
                 document.head.appendChild(style);
             }
@@ -1601,22 +1739,17 @@ function initLockOverlay() {
 
 
         profileDefaultBtn.style = `
-            font-size: 12px;
-            line-height: 1.2;
-            display: inline-block;
-            margin: 0;
-            color: var(--content_p1);
-            max-width: 120px;
-            text-align: center;
-            white-space: normal;
-            word-wrap: break-word;
-            vertical-align: middle;
-        `;
-
-        profileDefaultBtn.onclick = () => {
-            applyThemeColor(DEFAULT_COLOR, 'profile');
-            alert("Theme color has been reset to default. You can change it in the WME Addons settings tab!");
-        };
+    font-size: 12px;
+    line-height: 1.2;
+    display: inline-block;
+    margin: 0;
+    color: var(--content_p1);
+    max-width: 120px;
+    text-align: center;
+    white-space: normal;
+    word-wrap: break-word;
+    vertical-align: middle;
+`;
 
         colorWrapper.append(profilePicker, profileDefaultBtn);
 
@@ -1629,14 +1762,9 @@ function initLockOverlay() {
             alert("Please change the theme color in the script settings tab!");
         };
 
-        profileDefaultBtn.onclick = () => {
-            applyThemeColor(DEFAULT_COLOR, 'profile');
-        };
-
         darkModeSwitch.onchange = () => {
             applyDarkMode(darkModeSwitch.checked, 'profile');
         };
-
         innerLayout.append(colorWrapper, darkModeSwitch);
         profileContainer.appendChild(innerLayout);
         userBox.insertBefore(profileContainer, wzMenuItem);
