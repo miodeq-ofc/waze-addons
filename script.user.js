@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.4.1
+// @version            1.4.2
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.4.1';
+const SCRIPT_VERSION = '1.4.2';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -32,8 +32,7 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "New GUI design!",
-        "Removed Auto House Numbers feature with custom delay",
+        "Low LockRnaks fixed button",
         "Other bug fixes"
     ];
 
@@ -1927,73 +1926,65 @@ ${changelogHTML}
             return;
         }
 
-        const segments = Object.values(W.model.segments.objects);
-
-        const groups = {};
-
-        segments.forEach(seg => {
-
+        let segmentsToFix = Object.values(W.model.segments.objects).filter(seg => {
             const required = getRequiredLock(seg.attributes);
             const current = seg.attributes.lockRank ?? 0;
-
-            if (required === null) return;
-            if (current >= required) return;
-
-            if (!groups[required]) {
-                groups[required] = [];
-            }
-
-            groups[required].push(seg);
+            return required !== null && current < required;
         });
 
-        const levels = Object.keys(groups).map(Number).sort((a, b) => a - b);
-
-        if (levels.length === 0) {
+        if (segmentsToFix.length === 0) {
             alert("Nothing to fix");
             return;
         }
 
-        let i = 0;
+        let lastCount = -1;
 
-        function next() {
+        while (segmentsToFix.length > 0) {
+            const currentRanks = segmentsToFix.map(seg => seg.attributes.lockRank ?? 0);
+            const minCurrent = Math.min(...currentRanks);
+            const nextLvl = minCurrent + 1;
 
-            if (i >= levels.length) {
-                return;
-            }
+            const targets = segmentsToFix.filter(seg => {
+                const current = seg.attributes.lockRank ?? 0;
+                const required = getRequiredLock(seg.attributes);
+                return current === minCurrent && minCurrent < required;
+            });
 
-            const level = levels[i];
-            const segs = groups[level];
-
+            if (targets.length === 0) break;
 
             W.selectionManager.clearSelectedModels?.();
-            W.selectionManager.setSelectedModels(segs);
+            W.selectionManager.setSelectedModels(targets);
 
-            setTimeout(() => {
+            await new Promise(resolve => setTimeout(resolve, 300));
 
+            const chip = document.querySelector(`wz-checkable-chip#lockRank-${nextLvl}`);
 
-                const chip = document.querySelector(
-                    `wz-checkable-chip#lockRank-${level}`
-                );
-
-                if (!chip) {
-                    console.warn("Missing chip:", level);
-                    i++;
-                    return next();
-                }
-
+            if (chip) {
                 chip.dispatchEvent(new MouseEvent('click', {
                     bubbles: true,
                     cancelable: true
                 }));
 
-                i++;
-                setTimeout(next, 300);
+                await new Promise(resolve => setTimeout(resolve, 400));
 
-            }, 300);
+                segmentsToFix = Object.values(W.model.segments.objects).filter(seg => {
+                    const required = getRequiredLock(seg.attributes);
+                    const current = seg.attributes.lockRank ?? 0;
+                    return required !== null && current < required;
+                });
+
+                if (segmentsToFix.length === lastCount) {
+                    console.log("No progress made (possibly no permissions for next level). Stopping.");
+                    break;
+                }
+                lastCount = segmentsToFix.length;
+            } else {
+                console.log(`No chip for level ${nextLvl} - stopping.`);
+                break;
+            }
         }
-
-        next();
     }
+
 
 
     function addLockFixButton() {
