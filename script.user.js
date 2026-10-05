@@ -32,7 +32,7 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Low LockRnaks fixed button",
+        "Low Lock Ranks button fixed",
         "Other bug fixes"
     ];
 
