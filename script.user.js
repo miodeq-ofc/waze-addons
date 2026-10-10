@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.4.2
+// @version            1.4.3
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,13 +16,14 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.4.2';
+const SCRIPT_VERSION = '1.4.3';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
 const SPEED_OVERLAY_STORAGE_KEY = 'wme-addons-speed-overlay-enabled';
 const SPEED_CONFIG_STORAGE_KEY = 'wme-addons-speed-config';
 const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
+const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
 
 (function () {
     'use strict';
@@ -32,7 +33,8 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Low Lock Ranks button fixed",
+        "Added Country Change Warning (check script settings)",
+        "Low Locks fixed, now works in Poland only",
         "Other bug fixes"
     ];
 
@@ -218,12 +220,10 @@ margin: 0px 0px 3px 7px;
 color: var(--content_p1);
 }
 
-.lock-help::after {
-content: "Shows segments with lower lock level than required for the current road type. Sync with Poland segments Locks Level and click the button next to the Save button to fix all visible on the map.";
+.lock-help .lock-help-tip {
 position: absolute;
-bottom: 125%;
-right: 100%;
-
+bottom: 100%;
+right: -100%;
 
 background: var(--background_default);
 color: var(--content_p1);
@@ -232,14 +232,14 @@ border-radius: 6px;
 
 font-family: sans-serif;
 font-weight: normal;
-font-size: 12px;
+font-size: 13px;
 
 line-height: 1.4;
 text-align: center;
 
 white-space: normal;
 width: max-content;
-max-width: 160px;
+max-width: 250px;
 overflow-wrap: break-word;
 -webkit-box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
 -moz-box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
@@ -252,9 +252,14 @@ transition: opacity 0.2s ease;
 z-index: 9999;
 }
 
-.lock-help:hover::after {
+.lock-help .lock-help-tip b {
+font-weight: bold;
+}
+
+.lock-help:hover .lock-help-tip {
 opacity: 1;
 }
+
 
 /*
 .user-info, .user-avatar, .highlight, .user-level
@@ -868,7 +873,183 @@ setTimeout(replaceWazeLogo, 300);
         return shiftedPoints;
     }
 
+    function isSegmentInPoland(seg) {
+        try {
+            const addr = wmeSDK.DataModel.Segments.getAddress({ segmentId: seg.attributes.id });
+            return addr?.country?.abbr === 'PL';
+        } catch (e) {
+            return false;
+        }
+    }
+    function isPoland() {
+        const c = getCurrentCountrySafe();
+        if (c && c.abbr) return c.abbr === 'PL';
+        return lastKnownCountryAbbr === 'PL';
+    }
+
+    function getIconPositions(points, step) {
+    if (!points || points.length < 2) return [];
+
+    const lengths = [];
+    let total = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+        const dx = points[i + 1].x - points[i].x;
+        const dy = points[i + 1].y - points[i].y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        lengths.push(len);
+        total += len;
+    }
+    if (total === 0) return [];
+
+    function pointAt(dist) {
+        let acc = 0;
+        for (let i = 0; i < lengths.length; i++) {
+            if (acc + lengths[i] >= dist || i === lengths.length - 1) {
+                const t = lengths[i] === 0 ? 0 : (dist - acc) / lengths[i];
+                return new OpenLayers.Geometry.Point(
+                    points[i].x + (points[i + 1].x - points[i].x) * t,
+                    points[i].y + (points[i + 1].y - points[i].y) * t
+                );
+            }
+            acc += lengths[i];
+        }
+        return null;
+    }
+
+    const mid = total / 2;
+    const distances = [mid];
+    for (let k = 1; mid - k * step >= step * 0.5; k++) {
+        distances.push(mid - k * step);
+        distances.push(mid + k * step);
+    }
+
+    return distances.map(pointAt).filter(Boolean);
+}
+
+    let lastKnownCountryAbbr = null;
+    let lastKnownCountryName = null;
+
+    function getCurrentCountrySafe() {
+        try {
+            return wmeSDK.DataModel.Countries.getTopCountry() || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+function showCountryWarning(fromName, toName) {
+    const old = document.getElementById('wme-addons-country-warning');
+    if (old) old.remove();
+
+    const DURATION = 5000;
+    const ANIM = 350;
+
+    if (!document.getElementById('wme-addons-country-warning-style')) {
+        const st = document.createElement('style');
+        st.id = 'wme-addons-country-warning-style';
+        st.textContent = `
+            @keyframes wmeAddonsWarnIn {
+                0%   { opacity: 0; transform: translate(-50%, -30px) scale(0.9); }
+                60%  { opacity: 1; transform: translate(-50%, 6px) scale(1.02); }
+                100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            }
+            @keyframes wmeAddonsWarnOut {
+                0%   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+                100% { opacity: 0; transform: translate(-50%, -30px) scale(0.9); }
+            }
+            @keyframes wmeAddonsWarnPulse {
+                0%, 100% { transform: scale(1); }
+                50%      { transform: scale(1.18); }
+            }
+            #wme-addons-country-warning.wme-warn-in {
+                animation: wmeAddonsWarnIn ${ANIM}ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            }
+            #wme-addons-country-warning.wme-warn-out {
+                animation: wmeAddonsWarnOut ${ANIM}ms ease-in forwards;
+            }
+            #wme-addons-country-warning .wme-warn-icon {
+                animation: wmeAddonsWarnPulse 1s ease-in-out infinite;
+            }
+        `;
+        document.head.appendChild(st);
+    }
+
+    const box = document.createElement('div');
+    box.id = 'wme-addons-country-warning';
+    box.className = 'wme-warn-in';
+    box.style.cssText = `
+        position: fixed;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        overflow: hidden;
+        background: var(--background_default);
+        color: var(--content_p1);
+        border: 2px solid #ffc400;
+        border-radius: 10px;
+        font-size: 14px;
+        cursor: pointer;
+        z-index: 9999999;
+        box-shadow: 0px 0px 40px 5px rgba(0, 0, 0, 1);
+    `;
+
+    box.innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 16px;">
+            <i class="fa fa-exclamation-triangle wme-warn-icon" style="font-size:22px; color:#ffc400;"></i>
+            <div>
+                <strong>Country changed</strong><br>
+                ${fromName} → <b>${toName}</b>
+            </div>
+        </div>
+        <div style="height:4px; width:100%; background:rgba(128,128,128,0.25);">
+            <div class="wme-addons-country-warning-bar" style="
+                height:100%;
+                width:100%;
+                background:#ffc400;
+                transition:width ${DURATION}ms linear;
+            "></div>
+        </div>
+    `;
+
+    let closing = false;
+    function closeBox() {
+        if (closing) return;
+        closing = true;
+        box.classList.remove('wme-warn-in');
+        box.classList.add('wme-warn-out');
+        setTimeout(() => box.remove(), ANIM);
+    }
+
+    box.onclick = closeBox;
+    document.body.appendChild(box);
+
+    const bar = box.querySelector('.wme-addons-country-warning-bar');
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            bar.style.width = '0%';
+        });
+    });
+
+    setTimeout(closeBox, DURATION);
+}
+
+    function checkCountryChange() {
+        const c = getCurrentCountrySafe();
+
+        if (!c || !c.abbr) return;
+
+        const enabled = localStorage.getItem(COUNTRY_WARNING_STORAGE_KEY) === 'true';
+
+        if (enabled && lastKnownCountryAbbr && lastKnownCountryAbbr !== c.abbr) {
+            showCountryWarning(lastKnownCountryName || lastKnownCountryAbbr, c.name || c.abbr);
+        }
+
+        lastKnownCountryAbbr = c.abbr;
+        lastKnownCountryName = c.name;
+    }
+
     function shouldHighlight(seg) {
+        if (!isSegmentInPoland(seg)) return false;
         const attr = seg.attributes;
 
         function getEffectiveLock(attr) {
@@ -917,7 +1098,6 @@ setTimeout(replaceWazeLogo, 300);
         const saved = localStorage.getItem(SPEED_CONFIG_STORAGE_KEY);
         if (saved) return JSON.parse(saved);
 
-        // Domyślne ustawienia (co 10 km/h od 10 do 140)
         const defaults = [];
         const colors = ['#ff0000', '#ff4500', '#ff8c00', '#ffd700', '#adff2f', '#00ff00', '#00fa9a', '#00ffff', '#00bfff', '#0000ff', '#8a2be2', '#a020f0', '#ff00ff', '#ff1493'];
         for (let i = 1; i <= 14; i++) {
@@ -1038,10 +1218,31 @@ setTimeout(replaceWazeLogo, 300);
         <div class="wme-addons-feature-button-title">
             <i class="fa fa-lock"></i>
             <span>Show Low Locks Segments</span>
-            <i class="fa fa-question-circle lock-help"></i>
+            <i class="fa fa-question-circle lock-help">
+               <span class="lock-help-tip">
+                    <b>PL: Działa tylko w Polsce!</b><br>Podświetla segmenty, których poziom blokady jest niższy niż wymagany dla danego typu drogi. Kliknij przycisk obok "Zapisz", aby naprawić wszystkie widoczne na mapie.
+                    <hr/>
+                    <b>EN: Works in Poland only!</b><br>Highlights segments whose lock level is lower than required for the given road type. Click the button next to "Save" to fix all segments visible on the map.
+               </span>
+
+            </i>
         </div>
 
         <!--<div class="wme-addons-feature-button-status">OFF</div>-->
+    </div>
+`);
+            const countryWarningCheckbox = $(`
+    <div
+        id="country-warning-toggle"
+        class="wme-addons-feature-button"
+        role="checkbox"
+        aria-checked="false"
+        tabindex="0"
+    >
+        <div class="wme-addons-feature-button-title">
+            <i class="fa fa-globe"></i>
+            <span>Country Change Warning</span>
+        </div>
     </div>
 `);
 
@@ -1064,8 +1265,17 @@ setTimeout(replaceWazeLogo, 300);
 
             toolboxDiv.append(oppOverlayCheckbox);
             toolboxDiv.append(lockOverlayCheckbox);
+            toolboxDiv.append(countryWarningCheckbox);
             toolboxDiv.append(speedOverlayCheckbox);
 
+            // hide div low locks on !Poland
+            function updateLockButtonVisibility() {
+                lockOverlayCheckbox.css('display', isPoland() ? '' : 'none');
+            }
+
+            updateLockButtonVisibility();
+            setTimeout(updateLockButtonVisibility, 200);
+            W.map.events.register("moveend", null, updateLockButtonVisibility);
 
             if (!document.getElementById('wme-addons-feature-button-style')) {
                 const style = document.createElement('style');
@@ -1113,6 +1323,18 @@ setTimeout(replaceWazeLogo, 300);
 
                 $(this).trigger('change');
             });
+
+            countryWarningCheckbox.on('click', function () {
+                const enabled = !$(this).prop('checked');
+
+                updateFeatureButtonState($(this), enabled);
+                localStorage.setItem(COUNTRY_WARNING_STORAGE_KEY, enabled ? 'true' : 'false');
+            });
+
+            updateFeatureButtonState(
+                countryWarningCheckbox,
+                localStorage.getItem(COUNTRY_WARNING_STORAGE_KEY) === 'true'
+            );
 
 
             speedOverlayCheckbox.on('click', function () {
@@ -1241,6 +1463,15 @@ setTimeout(replaceWazeLogo, 300);
             }
 
 
+
+
+            if (!window.COUNTRY_WARNING_EVENTS_REGISTERED) {
+                checkCountryChange();
+                W.map.events.register("moveend", null, checkCountryChange);
+                window.COUNTRY_WARNING_EVENTS_REGISTERED = true;
+            }
+
+
             settingsDiv.append(toolboxDiv);
 
 
@@ -1302,24 +1533,25 @@ setTimeout(replaceWazeLogo, 300);
             );
             layer.addFeatures([lineFeature]);
 
+
             // IMG  OPP
-            const interval = 10;
-            for (let i = 0; i < points.length; i += interval) {
+            const step = Math.max(700, iconSize * 4 * W.map.getResolution());
+            getIconPositions(points, step).forEach(pos => {
                 const pointFeature = new OpenLayers.Feature.Vector(
-                    new OpenLayers.Geometry.Point(points[i].x, points[i].y),
+                    pos,
                     null,
                     {
                         externalGraphic: "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/opp.png",
                         graphicWidth: iconSize,
                         graphicHeight: iconSize,
-                        graphicXOffset: -iconSize/2,
-                        graphicYOffset: -iconSize/2,
+                        graphicXOffset: -iconSize / 2,
+                        graphicYOffset: -iconSize / 2,
                         graphicOpacity: 1,
                         graphicZIndex: 9999999999
                     }
                 );
                 layer.addFeatures([pointFeature]);
-            }
+            });
         });
     }
 
@@ -1439,32 +1671,30 @@ function initLockOverlay() {
 
             const iconSize = zoom >= 17 ? 50 : 40;
 
-            const midIndex = Math.floor(points.length / 2);
-            const midPoint = points[midIndex];
+            const step = Math.max(300, iconSize * 4 * W.map.getResolution());
 
-            const pointFeature = new OpenLayers.Feature.Vector(
-                new OpenLayers.Geometry.Point(
-                    midPoint.x,
-                    midPoint.y
-                ),
-                null,
-                {
-                    externalGraphic:
-                        "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/lock.png",
+            getIconPositions(points, step).forEach(pos => {
+                const pointFeature = new OpenLayers.Feature.Vector(
+                    pos,
+                    null,
+                    {
+                        externalGraphic:
+                            "https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/lock.png",
 
-                    graphicWidth: iconSize,
-                    graphicHeight: iconSize,
+                        graphicWidth: iconSize,
+                        graphicHeight: iconSize,
 
-                    graphicXOffset: -iconSize / 2,
-                    graphicYOffset: -iconSize / 2,
+                        graphicXOffset: -iconSize / 2,
+                        graphicYOffset: -iconSize / 2,
 
-                    graphicOpacity: 0.9,
+                        graphicOpacity: 0.9,
 
-                    graphicZIndex: 999999
-                }
-            );
+                        graphicZIndex: 999999
+                    }
+                );
 
-            layer.addFeatures([pointFeature]);
+                layer.addFeatures([pointFeature]);
+            });
         });
 
         layer.redraw();
@@ -1517,6 +1747,13 @@ function initLockOverlay() {
             null,
             scan
         );
+
+        // show button if Poland (refresh on map move)
+          W.map.events.register("moveend", null, () => {
+            const b = document.getElementById('fix-locks-btn');
+            if (b) b.style.display = isPoland() ? '' : 'none';
+        });
+
 
         window.LOCK_OVERLAY_EVENTS_REGISTERED = true;
     }
@@ -1927,6 +2164,7 @@ ${changelogHTML}
         }
 
         let segmentsToFix = Object.values(W.model.segments.objects).filter(seg => {
+            if (!isSegmentInPoland(seg)) return false;
             const required = getRequiredLock(seg.attributes);
             const current = seg.attributes.lockRank ?? 0;
             return required !== null && current < required;
@@ -1968,6 +2206,7 @@ ${changelogHTML}
                 await new Promise(resolve => setTimeout(resolve, 400));
 
                 segmentsToFix = Object.values(W.model.segments.objects).filter(seg => {
+                    if (!isSegmentInPoland(seg)) return false;
                     const required = getRequiredLock(seg.attributes);
                     const current = seg.attributes.lockRank ?? 0;
                     return required !== null && current < required;
@@ -2022,6 +2261,8 @@ ${changelogHTML}
         const referenceNode = children[insertIndex];
 
         toolbar.insertBefore(btn, referenceNode);
+        btn.style.display = isPoland() ? '' : 'none';
+
     }
 
 
