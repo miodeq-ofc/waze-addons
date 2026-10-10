@@ -111,6 +111,50 @@ const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
         const style = document.createElement("style");
         style.textContent = `
 
+        /* --- SIDEBAR SCROLLBAR --- */
+
+#sidebar {
+    overflow: hidden !important;
+}
+
+#sidebar,
+#sidebar .tab-content,
+#sidebar .tab-pane,
+#sidebar #edit-panel,
+#sidebar .side-panel-section {
+    scrollbar-width: thin;                                   /* Firefox */
+    scrollbar-color: var(--content_p1) transparent;             /* Firefox */
+}
+
+/* Chrome, Edge, Opera, Safari */
+#sidebar ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+#sidebar ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 999px;
+}
+
+#sidebar ::-webkit-scrollbar-thumb {
+    background-color: var(--content_p1);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.2s ease;
+}
+
+#sidebar ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--always_dark_content_default);
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+#sidebar ::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
 #addons-settings > p {
 border-bottom: 1px solid var(--content_p1);
 padding-bottom: 4px;
@@ -1896,14 +1940,15 @@ function initLockOverlay() {
             const featuresDiv = $('<div style="margin-top:15px;"></div>');
             featuresDiv.append('<h4>Features</h4>');
             featuresDiv.append(`
-<ul style="padding-left:20px;">
-<li>Dark / Light mode</li>
-<li>Custom theme color</li>
-<li>Speed Limits Highlighter</li>
-<li>Lower Lock Segments Highlighter – fix them in one click (only 🇵🇱)</li>
-<li>Show segments with Speed Camera</li>
-</ul>
-`);
+               <ul style="padding-left:20px;">
+               <li>Dark / Light mode</li>
+               <li>Custom theme color</li>
+               <li>Speed Limits Highlighter</li>
+               <li>Country Change Warning</li>
+               <li>Lower Lock Segments Highlighter – fix them in one click (only 🇵🇱)</li>
+               <li>Show segments with Speed Camera</li>
+               </ul>
+            `);
 
             scriptContentPane.append(settingsDiv);
             scriptContentPane.append(featuresDiv);
