@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            WME Geoportal by Miodeq
-// @version         1.0.8
+// @version         1.0.9
 // @description     Geoportal layers to WME
 // @include         https://www.waze.com/editor*
 // @include         https://www.waze.com/*/editor*
@@ -156,8 +156,11 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
 
     function injectIntoWmeLayerSwitcher(retries = 0) {
         if (retries > 100) return;
-        const mainList = document.querySelector('#layer-switcher-region .scrollable ul') ||
-                         document.querySelector('.layer-switcher .menu .scrollable ul');
+        const mainList =
+              document.querySelector('#layer-switcher-region [class*="scrollable"] > ul') ||
+              document.querySelector('#layer-switcher-region ul.togglers--RNmLJ') ||
+              document.querySelector('#layer-switcher-region .scrollable ul') ||
+              document.querySelector('.layer-switcher .menu .scrollable ul');
         if (!mainList) {
             setTimeout(() => injectIntoWmeLayerSwitcher(retries + 1), 1000);
             return;
@@ -173,7 +176,7 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         headerDiv.className = 'treeCategory--f0IJf';
         headerDiv.innerHTML = `
             <wz-button color="clear-icon" size="xs" type="button">
-                <i class="toggleCategoryIcon--NttVA w-icon w-icon-caret-down"></i>
+                <i class="toggleCategoryIcon--NttVA w-icon w-icon-caret-down upsideDown--OlXfE"></i>
             </wz-button>
             <label class="groupLabel--o5_5n">Geoportal by Miodeq</label>
         `;
@@ -244,11 +247,23 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
 
         collapsibleArea.appendChild(groupList);
         groupLi.appendChild(collapsibleArea);
-        headerDiv.onclick = () => {
+        const categoryButton = headerDiv.querySelector('wz-button');
+        const categoryIcon = headerDiv.querySelector('i');
+
+        const toggleCategory = (e) => {
+            e?.stopPropagation();
+
             const isExpanded = collapsibleArea.getAttribute('aria-expanded') === 'true';
-            collapsibleArea.setAttribute('aria-expanded', !isExpanded);
-            collapsibleArea.style.display = isExpanded ? 'none' : 'block';
+            const newExpanded = !isExpanded;
+
+            collapsibleArea.setAttribute('aria-expanded', String(newExpanded));
+            collapsibleArea.style.display = newExpanded ? '' : 'none';
+
+            categoryIcon?.classList.toggle('upsideDown--OlXfE', newExpanded);
         };
+
+        categoryButton.onclick = toggleCategory;
+        headerDiv.querySelector('label').onclick = toggleCategory;
     }
 
     function Geoportal_bootstrap() {
