@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.4.3
+// @version            1.4.4
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.4.3';
+const SCRIPT_VERSION = '1.4.4';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -33,9 +33,9 @@ const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Added Country Change Warning (check script settings)",
-        "Low Locks fixed, now works in Poland only",
-        "Other bug fixes"
+        "Fixed theme after WME SDK update",
+        "Dark mode now works in Messages",
+        "Bug fixes and improvements"
     ];
 
     // ---- --------------------------------------------------------------------------------------------------
@@ -62,6 +62,7 @@ const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
         if (profileCheck && source !== 'profile') {
             profileCheck.checked = isEnabled;
         }
+        syncChatIframes();
     }
 
     // --- color sync ---
@@ -70,6 +71,7 @@ const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
         document.documentElement.style.setProperty('--primary', color);
         document.documentElement.style.setProperty('--primary_variant', color);
         updateChipColor(color);
+        syncChatIframes();
 
 
         const settingsPicker = document.getElementById('wme-addons-color-picker');
@@ -108,7 +110,9 @@ const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
 
     // ---------- STYLES ----------
     function addStyles() {
+        if (document.getElementById('wme-addons-styles')) return;
         const style = document.createElement("style");
+        style.id = 'wme-addons-styles';
         style.textContent = `
 
         /* --- SIDEBAR SCROLLBAR --- */
@@ -305,6 +309,7 @@ opacity: 1;
 }
 
 
+
 /*
 .user-info, .user-avatar, .highlight, .user-level
 {
@@ -341,16 +346,16 @@ opacity: 1;
 --always_black: #010101;
 --always_dark: #1b1e24;
 --always_dark_background_default: #1b1e24;
---always_dark_background_variant: #010101;
+--always_dark_background_variant: #010101 !important;
 --always_dark_content_default: #e7e9ec;
 --always_dark_content_p1: #d4d6da;
 --always_dark_content_p2: #b8bbbE;
 --always_dark_inactive: #565a5f;
 --always_dark_surface_default: #3d4144;
---background_default: #1b1e24;
+--background_default: #1b1e24 !important;
 --background_modal: rgba(33,34,37,0.6);
 --background_table_overlay: rgba(145,150,157,0.6);
---background_variant: #010101;
+--background_variant: #010101 !important;
 --brand_carpool: #1fe493;
 --brand_waze: #34cefe;
 --cautious: #fbe255;
@@ -365,10 +370,10 @@ opacity: 1;
 --handle: #d4d6da;
 --hint_text: #91969d;
 --ink_elevation: #e7e9ec;
---ink_on_primary: #fefefe;
---ink_on_primary_focused: hsla(0,0%,99%,0.12);
---ink_on_primary_hovered: hsla(0,0%,99%,0.04);
---ink_on_primary_pressed: hsla(0,0%,99%,0.1);
+--ink_on_primary: #fefefe !important;
+--ink_on_primary_focused: hsla(0,0%,99%,0.12) !important;
+--ink_on_primary_hovered: hsla(0,0%,99%,0.04) !important;
+--ink_on_primary_pressed: hsla(0,0%,99%,0.1) !important;
 --leading_icon: #73777e;
 --on_primary: #1b1e24;
 --promotion_variant: #c189fe;
@@ -384,7 +389,7 @@ opacity: 1;
 --safe_variant: #1fe493;
 --separator_default: #3d4144;
 --shadow_default: #010101;
---surface_alt: #19437d;
+--surface_alt: var(--primary-darker, #19437d) !important;
 --surface_default: #3d4144;
 --surface_variant: #3d4144;
 --surface_variant_blue: #1b3a51;
@@ -405,6 +410,11 @@ color-scheme: dark;
 }
 [wz-theme="dark"] #logo-waze-dark {
     filter: invert(1);
+}
+
+[wz-theme="dark"] .menu--eBus8
+{
+background-color: var(--background_default);
 }
 
 [wz-theme="dark"] .leaflet-control-copyright {
@@ -2309,6 +2319,75 @@ ${changelogHTML}
         btn.style.display = isPoland() ? '' : 'none';
 
     }
+
+    // ---------- CHAT IFRAME THEME ----------
+
+    function getDarkThemeCss() {
+        const sheet = document.getElementById('wme-addons-styles')?.sheet;
+        if (!sheet) return '';
+
+        for (const rule of sheet.cssRules) {
+            if (rule.selectorText === '[wz-theme="dark"]') {
+                return rule.cssText.replace('[wz-theme="dark"]', 'html[wz-theme="dark"]');
+            }
+        }
+        return '';
+    }
+
+    function applyChatIframeTheme(iframe) {
+        try {
+            const doc = iframe.contentDocument;
+            if (!doc || !doc.documentElement || !doc.head) return;
+
+            const isDark = localStorage.getItem(DARK_MODE_STORAGE_KEY) === 'true';
+            const html = doc.documentElement;
+
+            if (isDark) html.setAttribute('wz-theme', 'dark');
+            else html.removeAttribute('wz-theme');
+
+            let st = doc.getElementById('wme-addons-chat-style');
+            if (!st) {
+                st = doc.createElement('style');
+                st.id = 'wme-addons-chat-style';
+                doc.head.appendChild(st);
+            }
+            const css = getDarkThemeCss();
+            if (st.textContent !== css) st.textContent = css;
+
+            const main = document.documentElement.style;
+            const primary = localStorage.getItem(COLOR_STORAGE_KEY) || DEFAULT_COLOR;
+            const darker = main.getPropertyValue('--primary-darker');
+            const chip = main.getPropertyValue('--wz-chip-checked-background-color');
+
+           // html.style.setProperty('--primary', primary);
+           // html.style.setProperty('--primary_variant', primary);
+           // if (darker) html.style.setProperty('--primary-darker', darker);
+           // if (chip) html.style.setProperty('--wz-chip-checked-background-color', chip);
+        } catch (e) {
+
+        }
+    }
+
+    function syncChatIframes() {
+        document.querySelectorAll('iframe[src*="chat/embed"]').forEach(frame => {
+            applyChatIframeTheme(frame);
+
+            if (!frame.dataset.wmeAddonsHooked) {
+                frame.dataset.wmeAddonsHooked = '1';
+                frame.addEventListener('load', () => {
+                    applyChatIframeTheme(frame);
+                    setTimeout(() => applyChatIframeTheme(frame), 500);
+                });
+            }
+        });
+    }
+
+    new MutationObserver(syncChatIframes).observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    syncChatIframes();
 
 
     function removeLockFixButton() {
