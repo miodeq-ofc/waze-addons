@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.4.4
+// @version            1.4.5
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.4.4';
+const SCRIPT_VERSION = '1.4.5';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -24,6 +24,7 @@ const SPEED_OVERLAY_STORAGE_KEY = 'wme-addons-speed-overlay-enabled';
 const SPEED_CONFIG_STORAGE_KEY = 'wme-addons-speed-config';
 const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
 const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
+const SHIELD_STORAGE_KEY = 'wme-addons-shield-overlay-enabled';
 
 (function () {
     'use strict';
@@ -33,8 +34,8 @@ const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Fixed theme after WME SDK update",
-        "Dark mode now works in Messages",
+        "Added Show Road Shields button",
+        "Chagne Country Warning updated",
         "Bug fixes and improvements"
     ];
 
@@ -114,6 +115,17 @@ const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
         const style = document.createElement("style");
         style.id = 'wme-addons-styles';
         style.textContent = `
+
+
+        @keyframes wmeAddonsChangelogBlink {
+            0%, 50%   { color: inherit; }
+            65%, 88%  { color: #ff2b2b; }
+            100%      { color: inherit; }
+        }
+        .wme-addons-changelog-first {
+            animation: wmeAddonsChangelogBlink 2s ease-in-out infinite;
+            font-weight: bold;
+        }
 
         /* --- SIDEBAR SCROLLBAR --- */
 
@@ -1299,6 +1311,20 @@ function showCountryWarning(fromName, toName) {
         </div>
     </div>
 `);
+            const shieldOverlayCheckbox = $(`
+    <div
+        id="shield-overlay-toggle"
+        class="wme-addons-feature-button"
+        role="checkbox"
+        aria-checked="false"
+        tabindex="0"
+    >
+        <div class="wme-addons-feature-button-title">
+            <i class="fa fa-shield"></i>
+            <span>Show Road Shields</span>
+        </div>
+    </div>
+`);
 
             const speedOverlayCheckbox = $(`
     <div
@@ -1320,6 +1346,7 @@ function showCountryWarning(fromName, toName) {
             toolboxDiv.append(oppOverlayCheckbox);
             toolboxDiv.append(lockOverlayCheckbox);
             toolboxDiv.append(countryWarningCheckbox);
+            toolboxDiv.append(shieldOverlayCheckbox);
             toolboxDiv.append(speedOverlayCheckbox);
 
             // hide div low locks on !Poland
@@ -1399,6 +1426,17 @@ function showCountryWarning(fromName, toName) {
 
                 $(this).trigger('change');
             });
+
+            shieldOverlayCheckbox.on('click', function () {
+                const enabled = !$(this).prop('checked');
+                updateFeatureButtonState($(this), enabled);
+                $(this).trigger('change');
+            });
+
+            updateFeatureButtonState(
+                shieldOverlayCheckbox,
+                localStorage.getItem(SHIELD_STORAGE_KEY) === 'true'
+            );
 
 
 
@@ -1601,7 +1639,7 @@ function showCountryWarning(fromName, toName) {
                         graphicXOffset: -iconSize / 2,
                         graphicYOffset: -iconSize / 2,
                         graphicOpacity: 1,
-                        graphicZIndex: 9999999999
+                        graphicZIndex: 9999995
                     }
                 );
                 layer.addFeatures([pointFeature]);
@@ -1743,7 +1781,7 @@ function initLockOverlay() {
 
                         graphicOpacity: 0.9,
 
-                        graphicZIndex: 999999
+                        graphicZIndex: 9999996
                     }
                 );
 
@@ -1899,6 +1937,189 @@ function initLockOverlay() {
                 W.map.events.register("zoomend", null, scan);
             }
 
+            let SHIELD_ENABLED = localStorage.getItem(SHIELD_STORAGE_KEY) === 'true';
+            const SHIELD_RENDERER_URL = 'https://renderer-am.waze.com/renderer/v1/signs/';
+            const shieldSizeCache = {};
+            let shieldRescanTimer = null;
+
+            function getShieldUrl(signType, signText) {
+                return `${SHIELD_RENDERER_URL}${signType}?text=${encodeURIComponent(signText)}`;
+            }
+
+            function getShieldPositions(points, step, alongOffset, minEdge) {
+                if (!points || points.length < 2) return [];
+
+                const lengths = [];
+                let total = 0;
+                for (let i = 0; i < points.length - 1; i++) {
+                    const dx = points[i + 1].x - points[i].x;
+                    const dy = points[i + 1].y - points[i].y;
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    lengths.push(len);
+                    total += len;
+                }
+                if (total === 0) return [];
+
+                function pointAt(dist) {
+                    let acc = 0;
+                    for (let i = 0; i < lengths.length; i++) {
+                        if (acc + lengths[i] >= dist || i === lengths.length - 1) {
+                            const t = lengths[i] === 0 ? 0 : (dist - acc) / lengths[i];
+                            return new OpenLayers.Geometry.Point(
+                                points[i].x + (points[i + 1].x - points[i].x) * t,
+                                points[i].y + (points[i + 1].y - points[i].y) * t
+                            );
+                        }
+                        acc += lengths[i];
+                    }
+                    return null;
+                }
+
+                const half = total / 2;
+                const edge = Math.min(minEdge, total * 0.2);
+                const offset = Math.min(alongOffset, half - edge);
+                const start = half + offset;
+
+                const distances = [];
+                for (let d = start; d >= edge; d -= step) distances.push(d);
+                for (let d = start + step; d <= total - edge; d += step) distances.push(d);
+
+                return distances.map(pointAt).filter(Boolean);
+            }
+
+            function getShieldRatio(url) {
+                const cached = shieldSizeCache[url];
+                if (cached) return cached.w / cached.h;
+                if (cached === undefined) {
+                    shieldSizeCache[url] = null;
+                    const img = new Image();
+                    img.onload = () => {
+                        shieldSizeCache[url] = {
+                            w: img.naturalWidth || 1,
+                            h: img.naturalHeight || 1
+                        };
+                        clearTimeout(shieldRescanTimer);
+                        shieldRescanTimer = setTimeout(() => window.SHIELD_SCAN?.(), 150);
+                    };
+                    img.onerror = () => { shieldSizeCache[url] = { w: 1, h: 1 }; };
+                    img.src = url;
+                }
+                return 1;
+            }
+
+            function initShieldOverlay() {
+                if (!window.W || !W.map || !W.model) {
+                    setTimeout(initShieldOverlay, 500);
+                    return;
+                }
+
+                if (!SHIELD_ENABLED) {
+                    window.SHIELD_LAYER_INSTANCE?.removeAllFeatures();
+                    return;
+                }
+
+                if (!window.SHIELD_LAYER_INSTANCE) {
+                    window.SHIELD_LAYER_INSTANCE = new OpenLayers.Layer.Vector("Shield Overlay Layer");
+                    W.map.addLayer(window.SHIELD_LAYER_INSTANCE);
+                }
+
+                const layer = window.SHIELD_LAYER_INSTANCE;
+
+                function getSegmentShieldUrls(attr) {
+                    const ids = [attr.primaryStreetID, ...(attr.streetIDs || [])];
+                    const urls = [];
+
+                    ids.forEach(id => {
+                        if (!id) return;
+                        const street = W.model.streets.objects[id];
+                        if (!street) return;
+
+                        const signType = street.attributes.signType;
+                        const signText = street.attributes.signText;
+                        if (signType == null || !signText) return;
+
+                        const url = getShieldUrl(signType, signText);
+                        if (!urls.includes(url)) urls.push(url);
+                    });
+
+                    return urls;
+                }
+
+                function scan() {
+                    if (!layer || !SHIELD_ENABLED) {
+                        layer?.removeAllFeatures();
+                        return;
+                    }
+
+                    layer.removeAllFeatures();
+
+                    const zoom = W.map.getZoom();
+                    if (zoom < 15) return;
+
+                    const iconHeight = zoom >= 17 ? 36 : 28;
+                    const gap = 2;
+                    const resolution = W.map.getResolution();
+                    const features = [];
+                    const shieldAlongPx = zoom >= 17 ? 70 : 55;
+                    const shieldAlong = shieldAlongPx * resolution;
+
+                    Object.values(W.model.segments.objects).forEach(seg => {
+                        const urls = getSegmentShieldUrls(seg.attributes);
+                        if (urls.length === 0) return;
+
+                        const geom = seg.getOLGeometry();
+                        if (!geom) return;
+                        const points = geom.getVertices();
+                        if (!points || points.length < 2) return;
+
+                        const segLen = geom.getLength();
+
+                        const SHORT_SEGMENT_LIMIT = 200;
+                        if (zoom < 17 && segLen < SHORT_SEGMENT_LIMIT) return;
+
+                        const sizes = urls.map(url => ({
+                            url,
+                            width: Math.round(iconHeight * getShieldRatio(url))
+                        }));
+                        const totalWidth = sizes.reduce((sum, s) => sum + s.width, 0) + gap * (sizes.length - 1);
+
+                        const step = Math.max(900, totalWidth * 5 * resolution);
+
+                        getShieldPositions(points, step, shieldAlong, iconHeight * 0.6 * resolution).forEach(pos => {
+                            let xStart = -totalWidth / 2;
+
+                            sizes.forEach(s => {
+                                features.push(new OpenLayers.Feature.Vector(
+                                    pos.clone(),
+                                    null,
+                                    {
+                                        externalGraphic: s.url,
+                                        graphicWidth: s.width,
+                                        graphicHeight: iconHeight,
+                                        graphicXOffset: xStart,
+                                        graphicYOffset: -iconHeight / 2,
+                                        graphicOpacity: 1,
+                                        graphicZIndex: 9999997
+                                    }
+                                ));
+                                xStart += s.width + gap;
+                            });
+                        });
+                    });
+
+                    layer.addFeatures(features);
+                }
+
+                window.SHIELD_SCAN = scan;
+                scan();
+
+                if (!window.SHIELD_EVENTS_REGISTERED) {
+                    W.map.events.register("moveend", null, () => window.SHIELD_SCAN?.());
+                    W.map.events.register("zoomend", null, () => window.SHIELD_SCAN?.());
+                    window.SHIELD_EVENTS_REGISTERED = true;
+                }
+            }
+
             // ---------- Checkbox Event ----------
             oppOverlayCheckbox.on('change', () => {
                 OPP_ENABLED = oppOverlayCheckbox.prop('checked');
@@ -1932,10 +2153,28 @@ function initLockOverlay() {
                 }
             });
 
+            shieldOverlayCheckbox.on('change', () => {
+                SHIELD_ENABLED = shieldOverlayCheckbox.prop('checked');
+                localStorage.setItem(SHIELD_STORAGE_KEY, SHIELD_ENABLED ? 'true' : 'false');
+
+                if (SHIELD_ENABLED) {
+                    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                        initShieldOverlay();
+                    });
+                } else {
+                    window.SHIELD_LAYER_INSTANCE?.removeAllFeatures();
+                }
+            });
+
             // ---------- Auto enable on load ----------
             if (OPP_ENABLED) {
                 ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
                     initOPPOverlay();
+                });
+            }
+            if (SHIELD_ENABLED) {
+                ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                    initShieldOverlay();
                 });
             }
             if (LOCK_ENABLED) {
@@ -2096,6 +2335,7 @@ addProfileToggle();
         }
     }
 
+
     function showUpdatePopup() {
         const popup = document.createElement("div");
         popup.style.position = "fixed";
@@ -2107,7 +2347,7 @@ addProfileToggle();
         popup.style.border = "1px solid var(--primary)";
         popup.style.color = "var(--content_p1)";
         popup.style.padding = "16px";
-        popup.style.zIndex = "9999999";
+        popup.style.zIndex = "99999999";
         popup.style.boxShadow = "0 6px 18px rgba(0,0,0,0.35)";
         popup.style.borderRadius = "10px";
         popup.style.fontSize = "14px";
@@ -2116,10 +2356,9 @@ addProfileToggle();
         popup.style.boxShadow = "0px 0px 40px 5px rgba(0, 0, 0, 1)";
 
         const changelogHTML = `
-<ul style="margin:8px 0 0 18px; padding:0;">
-${CHANGELOG.map(item => `<li style="margin-bottom:4px;">${item}</li>`).join("")}
-</ul>
-`;
+             <ul style="margin:8px 0 0 18px; padding:0;">
+             ${CHANGELOG.map((item, i) => `<li class="${i === 0 ? 'wme-addons-changelog-first' : ''}" style="margin-bottom:4px;">${item}</li>`).join("")}
+             </ul>`;
 
         popup.innerHTML = `
 <div style="position:absolute; top:8px; right:12px; cursor:pointer; font-weight:bold; font-size:16px;" id="wme-addons-update-close">✕</div>
