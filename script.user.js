@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.4.5
+// @version            1.4.6
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.4.5';
+const SCRIPT_VERSION = '1.4.6';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -25,6 +25,7 @@ const SPEED_CONFIG_STORAGE_KEY = 'wme-addons-speed-config';
 const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
 const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
 const SHIELD_STORAGE_KEY = 'wme-addons-shield-overlay-enabled';
+const STREET_SEARCH_STORAGE_KEY = 'wme-addons-street-search-enabled';
 
 (function () {
     'use strict';
@@ -34,8 +35,8 @@ const SHIELD_STORAGE_KEY = 'wme-addons-shield-overlay-enabled';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Added Show Road Shields button",
-        "Chagne Country Warning updated",
+        "Added Highlight by Street Name button",
+        "Highlights segments and places (points, areas, RPP) on a street",
         "Bug fixes and improvements"
     ];
 
@@ -128,6 +129,86 @@ const SHIELD_STORAGE_KEY = 'wme-addons-shield-overlay-enabled';
         }
 
         /* --- SIDEBAR SCROLLBAR --- */
+
+@keyframes wmeAddonsSearchPop {
+    0%   { opacity: 0; transform: translate(-50%, 30px) scale(0.6); }
+    60%  { opacity: 1; transform: translate(-50%, -4px) scale(1.05); }
+    100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+#wme-addons-search-box {
+    position: absolute;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%) scale(1);
+    height: 44px;
+    width: 44px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--background_default);
+    color: var(--content_p1);
+    border: 2px solid var(--primary);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    z-index: 1000;
+    animation: wmeAddonsSearchPop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    transition:
+        width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.2s ease,
+        transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#wme-addons-search-box:hover {
+    box-shadow: 0 2px 16px rgba(0,0,0,0.55);
+    transform: translateX(-50%) scale(1.06);
+}
+
+#wme-addons-search-box.wme-search-open {
+    width: 300px;
+}
+
+#wme-addons-search-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: var(--primary);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+#wme-addons-search-box.wme-search-open #wme-addons-search-icon {
+    transform: scale(0.95);
+}
+
+#wme-addons-search-input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--content_p1) !important;
+    font-size: 14px;
+    padding: 0 14px 0 2px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-10px);
+    transition: opacity 0.25s ease 0.1s, transform 0.3s ease 0.1s;
+}
+
+#wme-addons-search-box.wme-search-open #wme-addons-search-input {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+}
 
 #sidebar {
     overflow: hidden !important;
@@ -519,8 +600,10 @@ border-color: var(--content_p2) !important;
 [wz-theme="dark"] .daterangepicker .available { background-color: var(--always_dark_surface_default); }
 [wz-theme="dark"] .daterangepicker td.today { background-color: var(--always_dark_surface_default); border: 2px solid var(--safe); }
 [wz-theme="dark"] .daterangepicker .calendar-table .next span, [wz-theme="dark"] .daterangepicker .calendar-table .prev span { border: solid var(--content_p1); border-width: 0 2px 2px 0; }
-[wz-theme="dark"] .house-number-marker { background: var(--background_default); }
+/*
+[wz-theme="dark"] .house-number-marker { background: var(--background_default) !important; }
 [wz-theme="dark"] .house-numbers-layer .house-number .content .input-wrapper { background-color: var(--background_default) !important; }
+*/
 [wz-theme="dark"] #urceDiv { background-color: var(--background_default) !important; box-shadow: 5px 5px 10px black !important; }
 [wz-theme="dark"] .urceDivCloseButton { background-color: var(--surface_default) !important; box-shadow: 5px 5px 10px black !important; }
 [wz-theme="dark"] .btn.btn-default { color: var(--content_p1); background-color: var(--always_dark_surface_default) !important; }
@@ -1325,6 +1408,20 @@ function showCountryWarning(fromName, toName) {
         </div>
     </div>
 `);
+            const streetSearchCheckbox = $(`
+    <div
+        id="street-search-toggle"
+        class="wme-addons-feature-button"
+        role="checkbox"
+        aria-checked="false"
+        tabindex="0"
+    >
+        <div class="wme-addons-feature-button-title">
+            <i class="fa fa-search"></i>
+            <span>Highlight by Street Name</span>
+        </div>
+    </div>
+`);
 
             const speedOverlayCheckbox = $(`
     <div
@@ -1347,6 +1444,7 @@ function showCountryWarning(fromName, toName) {
             toolboxDiv.append(lockOverlayCheckbox);
             toolboxDiv.append(countryWarningCheckbox);
             toolboxDiv.append(shieldOverlayCheckbox);
+            toolboxDiv.append(streetSearchCheckbox);
             toolboxDiv.append(speedOverlayCheckbox);
 
             // hide div low locks on !Poland
@@ -1436,6 +1534,17 @@ function showCountryWarning(fromName, toName) {
             updateFeatureButtonState(
                 shieldOverlayCheckbox,
                 localStorage.getItem(SHIELD_STORAGE_KEY) === 'true'
+            );
+
+            streetSearchCheckbox.on('click', function () {
+                const enabled = !$(this).prop('checked');
+                updateFeatureButtonState($(this), enabled);
+                $(this).trigger('change');
+            });
+
+            updateFeatureButtonState(
+                streetSearchCheckbox,
+                localStorage.getItem(STREET_SEARCH_STORAGE_KEY) === 'true'
             );
 
 
@@ -1654,35 +1763,35 @@ function showCountryWarning(fromName, toName) {
 
 
             // ---------- LOCK Overlay Function ----------
-function initLockOverlay() {
-    if (!window.W || !W.map || !W.model) {
-        setTimeout(initLockOverlay, 500);
-        return;
-    }
+            function initLockOverlay() {
+                if (!window.W || !W.map || !W.model) {
+                    setTimeout(initLockOverlay, 500);
+                    return;
+                }
 
-    if (!LOCK_ENABLED) {
-        if (window.LOCK_LAYER_INSTANCE) {
-            window.LOCK_LAYER_INSTANCE.removeAllFeatures();
-        }
+                if (!LOCK_ENABLED) {
+                    if (window.LOCK_LAYER_INSTANCE) {
+                        window.LOCK_LAYER_INSTANCE.removeAllFeatures();
+                    }
 
-        if (window.LOCK_BLINK_ANIMATION) {
-            cancelAnimationFrame(window.LOCK_BLINK_ANIMATION);
-            window.LOCK_BLINK_ANIMATION = null;
-        }
+                    if (window.LOCK_BLINK_ANIMATION) {
+                        cancelAnimationFrame(window.LOCK_BLINK_ANIMATION);
+                        window.LOCK_BLINK_ANIMATION = null;
+                    }
 
-        return;
-    }
+                    return;
+                }
 
-    if (!window.LOCK_LAYER_INSTANCE) {
-        window.LOCK_LAYER_INSTANCE =
-            new OpenLayers.Layer.Vector("LOCK Overlay Layer");
+                if (!window.LOCK_LAYER_INSTANCE) {
+                    window.LOCK_LAYER_INSTANCE =
+                        new OpenLayers.Layer.Vector("LOCK Overlay Layer");
 
-        W.map.addLayer(window.LOCK_LAYER_INSTANCE);
-    }
+                    W.map.addLayer(window.LOCK_LAYER_INSTANCE);
+                }
 
-    const layer = window.LOCK_LAYER_INSTANCE;
+                const layer = window.LOCK_LAYER_INSTANCE;
 
-    let blinkingFeatures = [];
+                let blinkingFeatures = [];
 
     function scan() {
         if (!layer || !LOCK_ENABLED) {
@@ -1840,7 +1949,6 @@ function initLockOverlay() {
             scan
         );
 
-        // show button if Poland (refresh on map move)
           W.map.events.register("moveend", null, () => {
             const b = document.getElementById('fix-locks-btn');
             if (b) b.style.display = isPoland() ? '' : 'none';
@@ -2120,6 +2228,274 @@ function initLockOverlay() {
                 }
             }
 
+            // ---------- Street Search ----------
+            let STREET_SEARCH_ENABLED = localStorage.getItem(STREET_SEARCH_STORAGE_KEY) === 'true';
+            let streetSearchQuery = '';
+            let streetSearchDebounce = null;
+
+            function getSegmentStreetNames(attr) {
+                const ids = [attr.primaryStreetID, ...(attr.streetIDs || [])];
+                const names = [];
+                ids.forEach(id => {
+                    if (!id) return;
+                    const street = W.model.streets.objects[id];
+                    const name = street?.attributes?.name;
+                    if (name) names.push(name);
+                });
+                return names;
+            }
+
+            function normalizeStreetName(s) {
+                return (s || '')
+                    .toLocaleLowerCase('pl')
+                    .replace(/^(ul|al|pl|os)\.\s*/, '')
+                    .replace(/^(ulica|aleja|plac|osiedle)\s+/, '');
+            }
+
+            function segmentMatchesQuery(attr, query) {
+                const q = normalizeStreetName(query);
+                return getSegmentStreetNames(attr).some(n => normalizeStreetName(n) === q);
+            }
+
+            function getVenueStreetName(venue) {
+                const sid = venue.attributes.streetID;
+                const fromModel = sid && W.model.streets.objects[sid]?.attributes?.name;
+                if (fromModel) return fromModel;
+                try {
+                    const addr = wmeSDK.DataModel.Venues.getAddress({ venueId: venue.getID() });
+                    return addr?.street?.name || '';
+                } catch (e) {
+                    return '';
+                }
+            }
+
+            function venueMatchesQuery(venue, query) {
+                const street = getVenueStreetName(venue);
+                return !!street && normalizeStreetName(street) === normalizeStreetName(query);
+            }
+
+            function getVenuePointGlowFeatures(query) {
+                const result = [];
+                if (!query || !W.model.venues) return result;
+
+                const resolution = W.map.getResolution();
+
+                Object.values(W.model.venues.objects).forEach(venue => {
+                    if (!venueMatchesQuery(venue, query)) return;
+
+                    const geom = venue.getOLGeometry?.();
+                    if (!geom || geom.CLASS_NAME !== 'OpenLayers.Geometry.Point') return;
+
+                    [
+                        { px: 26, fill: 0.2 },
+                        { px: 17, fill: 0.4 }
+                    ].forEach(ring => {
+                        const circle = OpenLayers.Geometry.Polygon.createRegularPolygon(
+                            geom.clone(),
+                            ring.px * resolution,
+                            40,
+                            0
+                        );
+                        result.push(new OpenLayers.Feature.Vector(circle, null, {
+                            fillColor: "#ffe600",
+                            fillOpacity: ring.fill,
+                            strokeColor: "#ffe600",
+                            strokeOpacity: 0.8,
+                            strokeWidth: 2,
+                            graphicZIndex: 3002,
+                            pointerEvents: "none"
+                        }));
+                    });
+                });
+
+                return result;
+            }
+
+
+            const VENUE_HL_ATTR = 'data-wme-addons-hl';
+            const VENUE_HL_KEYS = ['fill', 'stroke', 'stroke-width', 'fill-opacity', 'stroke-opacity'];
+
+            function clearVenueAreaDomHighlight() {
+                document.querySelectorAll(`[${VENUE_HL_ATTR}]`).forEach(el => {
+                    try {
+                        const orig = JSON.parse(el.getAttribute(VENUE_HL_ATTR));
+                        Object.entries(orig).forEach(([k, v]) => {
+                            if (v === null) el.removeAttribute(k);
+                            else el.setAttribute(k, v);
+                        });
+                    } catch (e) {}
+                    el.removeAttribute(VENUE_HL_ATTR);
+                });
+            }
+
+            function applyVenueAreaDomHighlight(query) {
+                clearVenueAreaDomHighlight();
+                if (!query || !W.model.venues) return;
+
+                Object.values(W.model.venues.objects).forEach(venue => {
+                    if (!venueMatchesQuery(venue, query)) return;
+
+                    const geom = venue.getOLGeometry?.();
+                    if (!geom || geom.CLASS_NAME === 'OpenLayers.Geometry.Point') return;
+
+                    const el = wmeSDK.Map.getFeatureDomElement({ featureId: venue.getID(), layerName: 'venues' });
+                    if (!el) return;
+
+                    const orig = {};
+                    VENUE_HL_KEYS.forEach(k => { orig[k] = el.getAttribute(k); });
+                    el.setAttribute(VENUE_HL_ATTR, JSON.stringify(orig));
+
+                    el.setAttribute('fill', '#ffe600');
+                    el.setAttribute('fill-opacity', '0.6');
+                    el.setAttribute('stroke', '#ffcc00');
+                    el.setAttribute('stroke-width', '4');
+                    el.setAttribute('stroke-opacity', '1');
+                });
+            }
+
+
+            function registerVenueDomHighlightEvents() {
+                if (window.VENUE_DOM_HL_REGISTERED) return;
+                window.VENUE_DOM_HL_REGISTERED = true;
+
+                let timer = null;
+                const reapply = () => {
+                    if (!STREET_SEARCH_ENABLED || !streetSearchQuery) return;
+                    clearTimeout(timer);
+                    timer = setTimeout(() => applyVenueAreaDomHighlight(streetSearchQuery), 250);
+                };
+
+                wmeSDK.Events.on({ eventName: 'wme-map-data-loaded', eventHandler: reapply });
+                wmeSDK.Events.on({ eventName: 'wme-map-mouse-move', eventHandler: reapply });
+            }
+
+            function mountStreetSearchUI() {
+                if (document.getElementById('wme-addons-search-box')) return;
+
+                const host = document.querySelector('wz-page-content');
+                if (!host) {
+                    setTimeout(mountStreetSearchUI, 500);
+                    return;
+                }
+                if (getComputedStyle(host).position === 'static') {
+                    host.style.position = 'relative';
+                }
+
+                const box = document.createElement('div');
+                box.id = 'wme-addons-search-box';
+                box.innerHTML = `
+        <button type="button" id="wme-addons-search-icon" title="Street Search Highlighter">
+            <i class="fa fa-search"></i>
+        </button>
+        <input type="text" id="wme-addons-search-input" placeholder="Street name..." autocomplete="off" spellcheck="false">
+    `;
+                host.appendChild(box);
+
+                const icon = box.querySelector('#wme-addons-search-icon');
+                const input = box.querySelector('#wme-addons-search-input');
+
+                function setOpen(open) {
+                    box.classList.toggle('wme-search-open', open);
+                    if (open) {
+                        setTimeout(() => input.focus(), 250);
+                    } else {
+                        input.value = '';
+                        streetSearchQuery = '';
+                        window.STREET_SEARCH_SCAN?.();
+                    }
+                }
+
+                icon.addEventListener('click', () => setOpen(!box.classList.contains('wme-search-open')));
+
+                ['keydown', 'keypress', 'keyup'].forEach(evt => {
+                    input.addEventListener(evt, e => e.stopPropagation());
+                });
+
+                input.addEventListener('keydown', e => {
+                    if (e.key === 'Escape') setOpen(false);
+                });
+
+                input.addEventListener('input', () => {
+                    clearTimeout(streetSearchDebounce);
+                    streetSearchDebounce = setTimeout(() => {
+                        streetSearchQuery = input.value;
+                        window.STREET_SEARCH_SCAN?.();
+                    }, 120);
+                });
+            }
+
+            function removeStreetSearchUI() {
+                document.getElementById('wme-addons-search-box')?.remove();
+                streetSearchQuery = '';
+                window.STREET_SEARCH_LAYER_INSTANCE?.removeAllFeatures();
+                clearVenueAreaDomHighlight();
+            }
+
+            function initStreetSearch() {
+                if (!window.W || !W.map || !W.model) {
+                    setTimeout(initStreetSearch, 500);
+                    return;
+                }
+
+                if (!STREET_SEARCH_ENABLED) {
+                    removeStreetSearchUI();
+                    return;
+                }
+
+                if (!window.STREET_SEARCH_LAYER_INSTANCE) {
+                    window.STREET_SEARCH_LAYER_INSTANCE = new OpenLayers.Layer.Vector("Street Search Layer");
+                    W.map.addLayer(window.STREET_SEARCH_LAYER_INSTANCE);
+                }
+
+                const layer = window.STREET_SEARCH_LAYER_INSTANCE;
+
+                function scan() {
+                    layer.removeAllFeatures();
+                    if (!STREET_SEARCH_ENABLED || !streetSearchQuery) {
+                        clearVenueAreaDomHighlight();
+                        return;
+                    }
+
+                    const features = [];
+
+                    Object.values(W.model.segments.objects).forEach(seg => {
+                        if (!segmentMatchesQuery(seg.attributes, streetSearchQuery)) return;
+
+                        const geom = seg.getOLGeometry();
+                        if (!geom) return;
+                        const points = geom.getVertices();
+                        if (!points || points.length < 2) return;
+
+                        features.push(new OpenLayers.Feature.Vector(
+                            new OpenLayers.Geometry.LineString(points),
+                            null,
+                            {
+                                strokeColor: "#ffe600",
+                                strokeWidth: 15,
+                                strokeOpacity: 0.7,
+                                graphicZIndex: 3002
+                            }
+                        ));
+                    });
+
+                    getVenuePointGlowFeatures(streetSearchQuery).forEach(f => features.push(f));
+                    layer.addFeatures(features);
+                    applyVenueAreaDomHighlight(streetSearchQuery);
+                }
+
+                window.STREET_SEARCH_SCAN = scan;
+
+                if (!window.STREET_SEARCH_EVENTS_REGISTERED) {
+                    W.map.events.register("moveend", null, () => window.STREET_SEARCH_SCAN?.());
+                    W.map.events.register("zoomend", null, () => window.STREET_SEARCH_SCAN?.());
+                    window.STREET_SEARCH_EVENTS_REGISTERED = true;
+                }
+
+                registerVenueDomHighlightEvents();
+                mountStreetSearchUI();
+                scan();
+            }
+
             // ---------- Checkbox Event ----------
             oppOverlayCheckbox.on('change', () => {
                 OPP_ENABLED = oppOverlayCheckbox.prop('checked');
@@ -2166,6 +2542,19 @@ function initLockOverlay() {
                 }
             });
 
+            streetSearchCheckbox.on('change', () => {
+                STREET_SEARCH_ENABLED = streetSearchCheckbox.prop('checked');
+                localStorage.setItem(STREET_SEARCH_STORAGE_KEY, STREET_SEARCH_ENABLED ? 'true' : 'false');
+
+                if (STREET_SEARCH_ENABLED) {
+                    ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                        initStreetSearch();
+                    });
+                } else {
+                    removeStreetSearchUI();
+                }
+            });
+
             // ---------- Auto enable on load ----------
             if (OPP_ENABLED) {
                 ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
@@ -2175,6 +2564,11 @@ function initLockOverlay() {
             if (SHIELD_ENABLED) {
                 ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
                     initShieldOverlay();
+                });
+            }
+            if (STREET_SEARCH_ENABLED) {
+                ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                    initStreetSearch();
                 });
             }
             if (LOCK_ENABLED) {
