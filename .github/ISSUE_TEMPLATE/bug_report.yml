@@ -1,0 +1,32 @@
+name: Bug report
+description: Something doesn't work as expected
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Script version
+      placeholder: "1.4.6"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open WME Addons tab
+        2. Enable ...
+        3. ...
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and userscript manager
+      placeholder: "Chrome 130, Tampermonkey 5.3"
