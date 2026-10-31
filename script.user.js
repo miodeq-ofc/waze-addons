@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.4.6
+// @version            1.5.1
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.4.6';
+const SCRIPT_VERSION = '1.5.1';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -35,9 +35,10 @@ const STREET_SEARCH_STORAGE_KEY = 'wme-addons-street-search-enabled';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Added Highlight by Street Name button",
-        "Highlights segments and places (points, areas, RPP) on a street",
-        "Bug fixes and improvements"
+        "Added Report bug / Suggestion button",
+        "Redesigned GUI for a consistent look",
+        "New script logo",
+        "Other bug fixes and improvements"
     ];
 
     // ---- --------------------------------------------------------------------------------------------------
@@ -139,7 +140,7 @@ const STREET_SEARCH_STORAGE_KEY = 'wme-addons-street-search-enabled';
 #wme-addons-search-box {
     position: absolute;
     left: 50%;
-    bottom: 24px;
+    bottom: 24px !important;
     transform: translateX(-50%) scale(1);
     height: 44px;
     width: 44px;
@@ -256,6 +257,21 @@ const STREET_SEARCH_STORAGE_KEY = 'wme-addons-street-search-enabled';
 border-bottom: 1px solid var(--content_p1);
 padding-bottom: 4px;
 margin-bottom: 10px;
+}
+.wme-addons-author-link {
+    color: var(--primary) !important;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.wme-addons-author-link:hover {
+    text-decoration: underline;
+}
+
+.wme-addons-author-link:focus,
+.wme-addons-author-link:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
 }
 #addons-settings
 {
@@ -429,7 +445,76 @@ opacity: 1;
 }
 */
 
+.wme-addons-report-link {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    margin: 3px 0;
+    padding: 6px 12px;
 
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    border: 3px solid var(--primary);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    color: var(--content_p1) !important;
+
+    font-size: 14px;
+    text-decoration: none !important;
+    cursor: pointer;
+    user-select: none;
+
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.1s ease;
+}
+
+.wme-addons-report-link:hover {
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    box-shadow: 0 0 5px var(--primary);
+}
+
+.wme-addons-report-link:active {
+    transform: scale(0.99);
+}
+.wme-addons-report-link:focus,
+.wme-addons-report-link:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+.wme-addons-report-link-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    font-size: 14px;
+}
+
+.wme-addons-report-link-title > i {
+    width: 22px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.wme-addons-report-link > i {
+    font-size: 13px;
+    opacity: 0.6;
+}
+
+.wme-addons-feature-button:hover {
+    background: rgba(255, 0, 0, 0.16);
+    box-shadow: 0 0 5px #d32f2f;
+}
+
+.wme-addons-feature-button.wme-addons-feature-enabled:hover {
+    background: rgba(26, 153, 92, 0.16);
+    box-shadow: 0 0 5px #1a995c;
+}
 
 /* --- DARK MODE CSS START --- */
 [wz-theme="dark"] {
@@ -846,7 +931,120 @@ border-color: var(--content_p2) !important;
         }
 
 
+/* --- PANELS (theme row + speed colors) --- */
+.wme-addons-panel {
+    box-sizing: border-box;
+    padding: 10px;
+    border: 2px solid color-mix(in srgb, var(--content_p3) 45%, transparent);
+    border-radius: 12px;
+    background: rgba(128, 128, 128, 0.1);
+}
 
+.wme-addons-theme-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+/* speed rows */
+#speed-list > div {
+    box-sizing: border-box;
+    height: 30px;
+    padding: 0 8px !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+#speed-list > div:hover {
+    background: rgba(128, 128, 128, 0.14) !important;
+}
+
+/* "Others" row (first) */
+#speed-list > div:first-child {
+    border: 1px solid var(--primary) !important;
+    background: color-mix(in srgb, var(--primary) 10%, transparent) !important;
+}
+
+#speed-list > div:first-child:hover {
+    background: color-mix(in srgb, var(--primary) 16%, transparent) !important;
+}
+
+/* color swatches */
+#speed-config-container input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+#speed-config-container input[type="color"]::-webkit-color-swatch {
+    border: 1px solid var(--content_p3);
+    border-radius: 4px;
+}
+#speed-config-container input[type="color"]::-moz-color-swatch {
+    border: 1px solid var(--content_p3);
+    border-radius: 4px;
+}
+
+/* delete X */
+#speed-config-container .btn-del-speed {
+    width: 22px;
+    height: 22px;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1 !important;
+    font-size: 14px;
+    color: var(--content_p3) !important;
+    transition: color 0.15s ease;
+}
+
+#speed-config-container .btn-del-speed:hover {
+    color: #d32f2f !important;
+}
+
+#speed-config-container .btn-del-speed:focus,
+#speed-config-container .btn-del-speed:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* + Add Speed */
+#speed-config-container > button {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 34px;
+    margin-top: 8px !important;
+    padding: 4px 12px;
+
+    border: 2px solid var(--content_p3) !important;
+    border-radius: 8px;
+    background: var(--background_default) !important;
+    color: var(--content_p1) !important;
+
+    font-size: 12px !important;
+    cursor: pointer;
+
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        transform 0.1s ease;
+}
+
+#speed-config-container > button:hover {
+    border-color: var(--primary) !important;
+    background: color-mix(in srgb, var(--primary) 10%, var(--background_default)) !important;
+}
+
+#speed-config-container > button:active {
+    transform: scale(0.99);
+}
+
+#speed-config-container > button:focus,
+#speed-config-container > button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
 
 
 
@@ -946,14 +1144,15 @@ border-color: var(--content_p2) !important;
      height: 31px;
      box-sizing: border-box;
      border: 2px solid var(--content_p3);
-     border-radius: 5px;
+     border-radius: 8px;
      background: var(--background_default);
-     transition: border 0.3s all;
+     transition: border-color 0.15s ease, background-color 0.15s ease;
      color: var(--content_p1);
 }
 .default-button-color:hover
 {
      border: 2px solid var(--primary);
+     background: color-mix(in srgb, var(--primary) 10%, var(--background_default));
 }
 
 `;
@@ -1271,12 +1470,12 @@ function showCountryWarning(fromName, toName) {
             const scriptContentPane = $('#addons-settings');
 
             scriptContentPane.append('<h2 style="margin-top:0;">WME Addons</h2>');
-            scriptContentPane.append(`<p>Version: ${SCRIPT_VERSION} · by Miodeq</p>`);
+            scriptContentPane.append(`<p>Version: ${SCRIPT_VERSION} · by <a class="wme-addons-author-link" href="https://www.waze.com/pl/user/editor/miodeq" target="_blank" rel="noopener noreferrer">Miodeq</a></p>`);
 
             const settingsDiv = $('<div style="margin-top:10px;"></div>');
 
             // --- Theme Settings Row (Color + Dark Mode) ---
-            const themeSettingsRow = $('<div style="display:flex; align-items:center; justify-content:space-between; gap:15px; margin-bottom:10px; padding:10px; background: rgba(128,128,128,0.1); border-radius:8px;"></div>');
+            const themeSettingsRow = $('<div class="wme-addons-panel wme-addons-theme-row"></div>');
 
             const colorGroup = $('<div style="display:flex; align-items:center; gap:8px;"></div>');
             //colorGroup.append('<strong style="font-size:13px;">Theme</strong>');
@@ -1334,6 +1533,18 @@ function showCountryWarning(fromName, toName) {
 
             themeSettingsRow.append(colorGroup).append(darkGroup);
             settingsDiv.append(themeSettingsRow);
+
+                        scriptContentPane.append(`
+                <a class="wme-addons-report-link" style="margin:0 0 10px 0;"
+                   href="https://github.com/miodeq-ofc/waze-addons/issues"
+                   target="_blank" rel="noopener noreferrer">
+                    <span class="wme-addons-report-link-title">
+                        <i class="fa fa-bug"></i>
+                        <span>Report bug / Suggestion</span>
+                    </span>
+                </a>
+            `);
+
 
             settingsDiv.append('<h4>Settings</h4>');
             const toolboxDiv = $('<div style="margin-top:5px; display:flex; flex-direction:column; gap:6px;"></div>');
@@ -1579,7 +1790,7 @@ function showCountryWarning(fromName, toName) {
 
 
             // --- Dynamic Speed Config Panel ---
-            const speedConfigContainer = $('<div id="speed-config-container" style="display:none; margin-top:10px; padding:10px; background: rgba(128,128,128,0.1); border-radius:8px; font-size:12px;"></div>');
+            const speedConfigContainer = $('<div id="speed-config-container" class="wme-addons-panel" style="display:none; margin-top:10px; font-size:12px;"></div>');
             toolboxDiv.append(speedConfigContainer);
 
             function renderSpeedConfig() {
@@ -1603,7 +1814,7 @@ function showCountryWarning(fromName, toName) {
 
                 config.forEach((item, index) => {
                     const row = $(`<div style="display:flex; align-items:center; gap:5px; justify-content:space-between; background:rgba(0,0,0,0.1); padding:2px 5px; border-radius:4px;">
-                        <span>${item.speed} km/h</span>
+                        <span style="width: 65px">${item.speed} km/h</span>
                         <input type="color" value="${item.color}" style="width:25px; height:20px; border:none; background:none; cursor:pointer;">
                         <button type="button" class="btn-del-speed" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">✕</button>
                     </div>`);
@@ -2587,7 +2798,8 @@ function showCountryWarning(fromName, toName) {
                <li>Dark / Light mode</li>
                <li>Custom theme color</li>
                <li>Speed Limits Highlighter</li>
-               <li>Country Change Warning</li>
+               <li>Speed Limits Highlighter</li>
+               <li>Highlight elements by street name</li>
                <li>Lower Lock Segments Highlighter – fix them in one click (only 🇵🇱)</li>
                <li>Show segments with Speed Camera</li>
                </ul>
@@ -2595,6 +2807,8 @@ function showCountryWarning(fromName, toName) {
 
             scriptContentPane.append(settingsDiv);
             scriptContentPane.append(featuresDiv);
+
+
         });
     }
 
@@ -2761,9 +2975,7 @@ addProfileToggle();
 <h3 style="margin:0;">WME Addons Updated!</h3>
 <div style="font-size:13px; opacity:0.8;">Version ${SCRIPT_VERSION} · by Miodeq</div>
 </div>
-
 <div style="border-top:1px solid var(--primary); margin:10px 0;"></div>
-
 <div>
 <strong>What's new:</strong>
 ${changelogHTML}
