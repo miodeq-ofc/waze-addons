@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name               WME Addons
-// @version            1.5.1
+// @version            1.5.2
 // @description        Addons for WME and other scripts
 // @match              *://*.waze.com/*editor*
 // @run-at             document-end
 // @grant              none
-// @copyright          Miodeq, Mateusz Tomaszek 2026
+// @copyright          Miodeq, 2026-2027
 // @downloadURL        https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
 // @updateURL          https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/script.user.js
 // @icon               https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
@@ -16,7 +16,7 @@
 /* global getWmeSdk */
 /* global OpenLayers */
 
-const SCRIPT_VERSION = '1.5.1';
+const SCRIPT_VERSION = '1.5.2';
 const COLOR_STORAGE_KEY = 'wme-addons-primary-color';
 const DEFAULT_COLOR = '#0099ff';
 const DARK_MODE_STORAGE_KEY = 'wme-addons-dark-mode';
@@ -26,6 +26,12 @@ const SPEED_OTHERS_COLOR_STORAGE_KEY = 'wme-addons-speed-others-color';
 const COUNTRY_WARNING_STORAGE_KEY = 'wme-addons-country-warning-enabled';
 const SHIELD_STORAGE_KEY = 'wme-addons-shield-overlay-enabled';
 const STREET_SEARCH_STORAGE_KEY = 'wme-addons-street-search-enabled';
+const PLACE_COLORS_STORAGE_KEY = 'wme-addons-place-colors-enabled';
+
+function readFlag(key) {
+    const v = localStorage.getItem(key);
+    return v === null ? true : v === 'true';
+}
 
 (function () {
     'use strict';
@@ -35,9 +41,8 @@ const STREET_SEARCH_STORAGE_KEY = 'wme-addons-street-search-enabled';
      // ---- CHANGELOG ---- -----------------------------------------------------------------------------------
 
     const CHANGELOG = [
-        "Added Report bug / Suggestion button",
-        "Redesigned GUI for a consistent look",
-        "New script logo",
+        "Added Place Type Colorizer (enable in script settings)",
+        "Added colors for forests, rivers, parking lots, gas stations, and more",
         "Other bug fixes and improvements"
     ];
 
@@ -1386,7 +1391,7 @@ function showCountryWarning(fromName, toName) {
 
         if (!c || !c.abbr) return;
 
-        const enabled = localStorage.getItem(COUNTRY_WARNING_STORAGE_KEY) === 'true';
+        const enabled = readFlag(COUNTRY_WARNING_STORAGE_KEY);
 
         if (enabled && lastKnownCountryAbbr && lastKnownCountryAbbr !== c.abbr) {
             showCountryWarning(lastKnownCountryName || lastKnownCountryAbbr, c.name || c.abbr);
@@ -1651,11 +1656,20 @@ function showCountryWarning(fromName, toName) {
     </div>
 `);
 
+            const placeColorCheckbox = $(
+    '<div id="place-color-toggle" class="wme-addons-feature-button" role="checkbox" aria-checked="false" tabindex="0">' +
+    '<div class="wme-addons-feature-button-title">' +
+    '<i class="fa fa-map-o"></i>' +
+    '<span>Place Type Colorizer</span>' +
+    '</div></div>'
+);
             toolboxDiv.append(oppOverlayCheckbox);
             toolboxDiv.append(lockOverlayCheckbox);
             toolboxDiv.append(countryWarningCheckbox);
             toolboxDiv.append(shieldOverlayCheckbox);
             toolboxDiv.append(streetSearchCheckbox);
+toolboxDiv.append(placeColorCheckbox);
+
             toolboxDiv.append(speedOverlayCheckbox);
 
             // hide div low locks on !Poland
@@ -1723,7 +1737,7 @@ function showCountryWarning(fromName, toName) {
 
             updateFeatureButtonState(
                 countryWarningCheckbox,
-                localStorage.getItem(COUNTRY_WARNING_STORAGE_KEY) === 'true'
+                readFlag(COUNTRY_WARNING_STORAGE_KEY)
             );
 
 
@@ -1744,7 +1758,7 @@ function showCountryWarning(fromName, toName) {
 
             updateFeatureButtonState(
                 shieldOverlayCheckbox,
-                localStorage.getItem(SHIELD_STORAGE_KEY) === 'true'
+                readFlag(SHIELD_STORAGE_KEY)
             );
 
             streetSearchCheckbox.on('click', function () {
@@ -1753,22 +1767,39 @@ function showCountryWarning(fromName, toName) {
                 $(this).trigger('change');
             });
 
+            placeColorCheckbox.on('click', function () {
+                const enabled = !$(this).prop('checked');
+                updateFeatureButtonState($(this), enabled);
+                $(this).trigger('change');
+            });
+
+            placeColorCheckbox.on('change', () => {
+                PLACE_COLORS_ENABLED = placeColorCheckbox.prop('checked');
+                localStorage.setItem(PLACE_COLORS_STORAGE_KEY, PLACE_COLORS_ENABLED ? 'true' : 'false');
+
+                ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                    initPlaceColors();
+                });
+            });
+
             updateFeatureButtonState(
                 streetSearchCheckbox,
-                localStorage.getItem(STREET_SEARCH_STORAGE_KEY) === 'true'
+                readFlag(STREET_SEARCH_STORAGE_KEY)
             );
+
+            updateFeatureButtonState(placeColorCheckbox, readFlag(PLACE_COLORS_STORAGE_KEY));
 
 
 
 
             const oppInitialState =
-                  localStorage.getItem('wme-opp-overlay-enabled') === 'true';
+                  readFlag('wme-opp-overlay-enabled');
 
             const lockInitialState =
-                  localStorage.getItem('wme-lock-overlay-enabled') === 'true';
+                  readFlag('wme-lock-overlay-enabled');
 
             const speedInitialState =
-                  localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+                  readFlag(SPEED_OVERLAY_STORAGE_KEY);
 
             updateFeatureButtonState(
                 oppOverlayCheckbox,
@@ -1864,7 +1895,7 @@ function showCountryWarning(fromName, toName) {
                 }
             });
 
-            const isSpeedEnabled = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+            const isSpeedEnabled = readFlag(SPEED_OVERLAY_STORAGE_KEY);
             speedOverlayCheckbox.prop('checked', isSpeedEnabled);
             if (isSpeedEnabled) {
                 speedConfigContainer.show();
@@ -1888,9 +1919,9 @@ function showCountryWarning(fromName, toName) {
 
 
             const OPP_STORAGE_KEY = 'wme-opp-overlay-enabled';
-            let OPP_ENABLED = localStorage.getItem(OPP_STORAGE_KEY) === 'true';
+            let OPP_ENABLED = readFlag(OPP_STORAGE_KEY);
             const LOCK_STORAGE_KEY = 'wme-lock-overlay-enabled';
-            let LOCK_ENABLED = localStorage.getItem(LOCK_STORAGE_KEY) === 'true';
+            let LOCK_ENABLED = readFlag(LOCK_STORAGE_KEY);
             oppOverlayCheckbox.prop('checked', OPP_ENABLED);
             lockOverlayCheckbox.prop('checked', LOCK_ENABLED);
 
@@ -2177,7 +2208,7 @@ function showCountryWarning(fromName, toName) {
                     return;
                 }
 
-                const SPEED_ENABLED = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+                const SPEED_ENABLED = readFlag(SPEED_OVERLAY_STORAGE_KEY);
                 if (!SPEED_ENABLED) {
                     if (window.SPEED_LAYER_INSTANCE) {
                         window.SPEED_LAYER_INSTANCE.removeAllFeatures();
@@ -2193,7 +2224,7 @@ function showCountryWarning(fromName, toName) {
                 const layer = window.SPEED_LAYER_INSTANCE;
 
                 function scan() {
-                    const currentEnabled = localStorage.getItem(SPEED_OVERLAY_STORAGE_KEY) === 'true';
+                    const currentEnabled = readFlag(SPEED_OVERLAY_STORAGE_KEY);
                     if (!layer || !currentEnabled) {
                         layer?.removeAllFeatures();
                         return;
@@ -2256,7 +2287,7 @@ function showCountryWarning(fromName, toName) {
                 W.map.events.register("zoomend", null, scan);
             }
 
-            let SHIELD_ENABLED = localStorage.getItem(SHIELD_STORAGE_KEY) === 'true';
+            let SHIELD_ENABLED = readFlag(SHIELD_STORAGE_KEY);
             const SHIELD_RENDERER_URL = 'https://renderer-am.waze.com/renderer/v1/signs/';
             const shieldSizeCache = {};
             let shieldRescanTimer = null;
@@ -2440,9 +2471,356 @@ function showCountryWarning(fromName, toName) {
             }
 
             // ---------- Street Search ----------
-            let STREET_SEARCH_ENABLED = localStorage.getItem(STREET_SEARCH_STORAGE_KEY) === 'true';
+            let STREET_SEARCH_ENABLED = readFlag(STREET_SEARCH_STORAGE_KEY);
             let streetSearchQuery = '';
             let streetSearchDebounce = null;
+            // ---------- Place colors ----------
+            let PLACE_COLORS_ENABLED = readFlag(PLACE_COLORS_STORAGE_KEY);
+
+            const PLACE_COLOR_MAP = {
+                SWAMP_MARSH:   '#9e5611',
+                FARM:          '#2ecc40',
+                FOREST_GROVE:  '#2ecc40',
+                ISLAND:        '#2ecc40',
+                NATURAL_FEATURES: '#2ecc40',
+                PARK:          '#2ecc40',
+                PLAYGROUND:    '#2ecc40',
+//               PLAZA:         '#2ecc40',
+                SEA_LAKE_POOL: '#1e90ff',
+                RIVER_STREAM:  '#1e90ff',
+                CANAL:         '#1e90ff',
+                GAS_STATION:             '#a200eb',
+                CHARGING_STATION:        '#a200eb',
+                EV_CHARGING_STATION:     '#a200eb',
+                GARAGE_AUTOMOTIVE_SHOP:  '#a200eb',
+                CAR_WASH:                '#a200eb',
+                CAR_REPAIR_SHOP:         '#a200eb',
+                SCHOOL:             '#c2185b',
+                COLLEGE_UNIVERSITY: '#c2185b',
+                KINDERGARTEN:       '#c2185b',
+                TRASH_AND_RECYCLING_FACILITIES: '#9e5611',
+                PARKING_LOT:   'url(#wme-addons-parking-v3)'
+            };
+
+            function getVenuePlaceColor(venue) {
+                const cats = venue.attributes.categories || [];
+                for (const c of cats) {
+                    if (PLACE_COLOR_MAP[c]) return PLACE_COLOR_MAP[c];
+                }
+                return null;
+            }
+
+            function getPlaceStyleEl() {
+                let st = document.getElementById('wme-addons-place-style');
+                if (!st) {
+                    st = document.createElement('style');
+                    st.id = 'wme-addons-place-style';
+                    document.head.appendChild(st);
+                }
+                return st;
+            }
+
+            const VENUE_SHAPE_SEL = ':is(path,polygon,rect,circle,ellipse,line,polyline)';
+            const VENUE_SVG_ATTR = 'data-wme-addons-venues-svg';
+
+            const VENUE_LABEL_BG = true;
+            const VENUE_LABEL_PATTERN_BG = '#4b5563';
+
+            function isLightHexColor(hex) {
+                const rgb = hexToRgb(hex || '');
+                if (!rgb) return false;
+                return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) > 165;
+            }
+
+            function markVenueSvg(svg) {
+                if (!svg) return false;
+                if (!svg.hasAttribute(VENUE_SVG_ATTR)) svg.setAttribute(VENUE_SVG_ATTR, '');
+                return true;
+            }
+
+            function ensureParkingPattern(svg) {
+                if (!svg || svg.querySelector('#wme-addons-parking-v3')) return;
+                const NS = 'http://www.w3.org/2000/svg';
+
+                let defs = svg.querySelector('defs');
+                if (!defs) {
+                    defs = document.createElementNS(NS, 'defs');
+                    svg.insertBefore(defs, svg.firstChild);
+                }
+
+                const pattern = document.createElementNS(NS, 'pattern');
+                pattern.setAttribute('id', 'wme-addons-parking-v3');
+                pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+                pattern.setAttribute('width', '16');
+                pattern.setAttribute('height', '16');
+                pattern.setAttribute('patternTransform', 'rotate(60)');
+
+                const asphalt = document.createElementNS(NS, 'rect');
+                asphalt.setAttribute('width', '16');
+                asphalt.setAttribute('height', '16');
+                asphalt.setAttribute('fill', '#353536');
+
+                const line = document.createElementNS(NS, 'rect');
+                line.setAttribute('x', '0');
+                line.setAttribute('width', '3');
+                line.setAttribute('height', '16');
+                line.setAttribute('fill', '#d1d5db');
+
+                pattern.appendChild(asphalt);
+                pattern.appendChild(line);
+                defs.appendChild(pattern);
+            }
+
+            function getSelectedVenueIds() {
+                const ids = new Set();
+                try {
+                    const sel = W.selectionManager.getSelectedDataModelObjects() || [];
+                    sel.forEach(o => {
+                        const id = o.getID ? o.getID() : o.attributes?.id;
+                        if (id != null) ids.add(String(id));
+                    });
+                } catch (e) {}
+                return ids;
+            }
+
+            const LABEL_RECT_ATTR = 'data-wme-addons-label-bg';
+            let labelRectTimer = null;
+
+            function getVenueLabelRoots() {
+                const roots = [];
+                try {
+                    const layer = W.map.getLayerByUniqueName('landmarks');
+                    const div = layer && layer.div;
+                    if (div && div.querySelector('text')) roots.push(div);
+                } catch (e) {}
+                if (roots.length === 0 && W.map && W.map.div) roots.push(W.map.div);
+                return roots;
+            }
+
+            function collectVenueLabelColors(selectedIds, searching) {
+                const colors = new Map();
+
+                Object.values(W.model.venues.objects).forEach(venue => {
+                    if (selectedIds.has(String(venue.getID()))) return;
+
+                    const geom = venue.getOLGeometry?.();
+                    if (!geom || geom.CLASS_NAME === 'OpenLayers.Geometry.Point') return;
+
+                    let fill = null;
+                    if (searching && venueMatchesQuery(venue, streetSearchQuery)) fill = '#ffe600';
+                    else if (PLACE_COLORS_ENABLED) fill = getVenuePlaceColor(venue);
+                    if (!fill) return;
+
+                    const name = (venue.attributes.name || '').trim();
+                    if (!name) return;
+
+                    const bg = fill.startsWith('url(') ? VENUE_LABEL_PATTERN_BG : fill;
+                    if (!colors.has(name)) colors.set(name, bg);
+                });
+
+                return colors;
+            }
+
+            function paintVenueLabelRects() {
+                if (!window.W || !W.map || !W.model || !W.model.venues) return;
+                if (!VENUE_LABEL_BG) return;
+                if (!PLACE_COLORS_ENABLED && !(STREET_SEARCH_ENABLED && streetSearchQuery)) return;
+
+                const searching = STREET_SEARCH_ENABLED && !!streetSearchQuery;
+                const colors = collectVenueLabelColors(getSelectedVenueIds(), searching);
+                if (colors.size === 0) return;
+
+                const NS = 'http://www.w3.org/2000/svg';
+                let scanned = 0;
+                let painted = 0;
+
+                getVenueLabelRoots().forEach(root => {
+                    root.querySelectorAll('text').forEach(textEl => {
+                        scanned++;
+
+                        const bg = colors.get((textEl.textContent || '').trim());
+                        if (!bg) return;
+
+                        let box;
+                        try {
+                            box = textEl.getBBox();
+                        } catch (e) {
+                            return;
+                        }
+                        if (!box || box.width <= 0 || box.height <= 0) return;
+
+                        const parent = textEl.parentNode;
+                        if (!parent) return;
+
+                        let rect = textEl.previousElementSibling;
+                        if (!rect || !rect.hasAttribute(LABEL_RECT_ATTR)) {
+                            rect = document.createElementNS(NS, 'rect');
+                            rect.setAttribute(LABEL_RECT_ATTR, '');
+                            parent.insertBefore(rect, textEl);
+                        }
+
+                        const pad = 1.5;
+
+                        rect.setAttribute('x', String(box.x - pad));
+                        rect.setAttribute('y', String(box.y - pad));
+                        rect.setAttribute('width', String(box.width + pad * 2));
+                        rect.setAttribute('height', String(box.height + pad * 2));
+                        rect.setAttribute('rx', '2');
+                        rect.setAttribute('ry', '2');
+                        rect.setAttribute('fill', bg);
+                        rect.setAttribute('fill-opacity', '1');
+                        rect.setAttribute('stroke', 'none');
+                        rect.setAttribute('pointer-events', 'none');
+
+                        const transform = textEl.getAttribute('transform');
+                        if (transform) rect.setAttribute('transform', transform);
+                        else rect.removeAttribute('transform');
+
+                        textEl.style.setProperty('fill', isLightHexColor(bg) ? '#101010' : '#ffffff', 'important');
+                        textEl.style.setProperty('fill-opacity', '1', 'important');
+                        textEl.style.setProperty('stroke', 'none', 'important');
+
+                        painted++;
+                    });
+                });
+
+                if (painted === 0) {
+                    console.debug('[WME Addons] tło nazw: <text> znalezione =', scanned, ', dopasowane do nazw miejsc =', painted);
+                }
+            }
+
+            function scheduleLabelRects() {
+                clearTimeout(labelRectTimer);
+                labelRectTimer = setTimeout(paintVenueLabelRects, 120);
+            }
+
+            function registerLabelRectEvents() {
+                if (window.LABEL_RECT_EVENTS_REGISTERED) return;
+                window.LABEL_RECT_EVENTS_REGISTERED = true;
+
+                W.map.events.register('moveend', null, scheduleLabelRects);
+                W.map.events.register('zoomend', null, scheduleLabelRects);
+                wmeSDK.Events.on({ eventName: 'wme-map-data-loaded', eventHandler: scheduleLabelRects });
+
+                try {
+                    W.selectionManager.events.register('selectionchanged', null, scheduleLabelRects);
+                } catch (e) {}
+            }
+
+            function applyVenueAreaStyles() {
+                if (!window.W || !W.map || !W.model || !W.model.venues || !wmeSDK) return;
+                if (!PLACE_COLORS_ENABLED && !(STREET_SEARCH_ENABLED && streetSearchQuery)) {
+                    const st0 = document.getElementById('wme-addons-place-style');
+                    if (st0 && st0.textContent) st0.textContent = '';
+                    return;
+                }
+
+                const searching = STREET_SEARCH_ENABLED && !!streetSearchQuery;
+                const selectedIds = getSelectedVenueIds();
+                let css = '';
+                let labelsGuarded = false;
+
+                if (searching || PLACE_COLORS_ENABLED) {
+                    Object.values(W.model.venues.objects).forEach(venue => {
+                        if (selectedIds.has(String(venue.getID()))) return;
+                        const geom = venue.getOLGeometry?.();
+                        if (!geom || geom.CLASS_NAME === 'OpenLayers.Geometry.Point') return;
+
+                        let s = null;
+                        if (searching && venueMatchesQuery(venue, streetSearchQuery)) {
+                            s = { fill: '#ffe600', fo: 0.5, stroke: '#ffcc00', w: 4 };
+                        } else if (PLACE_COLORS_ENABLED) {
+                            const c = getVenuePlaceColor(venue);
+                            if (c) {
+                                const isPattern = c.startsWith('url(');
+                                s = {
+                                    fill: c,
+                                    fo: isPattern ? 0.45 : 0.25,
+                                    stroke: isPattern ? '#6b7280' : c,
+                                    w: 2
+                                };
+                            }
+                        }
+                        if (!s) return;
+
+                        let el = null;
+                        try {
+                            el = wmeSDK.Map.getFeatureDomElement({ featureId: venue.getID(), layerName: 'venues' });
+                        } catch (e) {}
+                        if (!el || !el.id) return;
+
+                        if (markVenueSvg(el.ownerSVGElement)) labelsGuarded = true;
+                        if (s.fill.startsWith('url(')) ensureParkingPattern(el.ownerSVGElement);
+
+                        const id = String(el.id).replace(/["\\]/g, '\\$&');
+
+                        css += `[id="${id}"]${VENUE_SHAPE_SEL},[id="${id}"] ${VENUE_SHAPE_SEL}{` +
+                            `fill:${s.fill} !important;fill-opacity:${s.fo} !important;` +
+                            `stroke:${s.stroke} !important;stroke-opacity:1 !important;stroke-width:${s.w}px !important;}\n`;
+                    });
+                }
+
+                if (labelsGuarded) {
+                    css += `[${VENUE_SVG_ATTR}] text{fill-opacity:1 !important;opacity:1 !important;}\n`;
+                }
+
+                const st = getPlaceStyleEl();
+                if (st.textContent !== css) st.textContent = css;
+            }
+
+            let areaMicrotaskQueued = false;
+
+            function scheduleVenueAreaStyles() {
+                if (areaMicrotaskQueued) return;
+                areaMicrotaskQueued = true;
+                queueMicrotask(() => {
+                    areaMicrotaskQueued = false;
+                    applyVenueAreaStyles();
+                });
+            }
+
+            function registerPlaceAreaEvents() {
+                if (window.PLACE_AREA_EVENTS_REGISTERED) return;
+                window.PLACE_AREA_EVENTS_REGISTERED = true;
+
+                W.map.events.register("moveend", null, scheduleVenueAreaStyles);
+                W.map.events.register("zoomend", null, scheduleVenueAreaStyles);
+
+                try {
+                    W.model.venues.on('objectsadded', scheduleVenueAreaStyles);
+                    W.model.venues.on('objectschanged', scheduleVenueAreaStyles);
+                    W.model.venues.on('objectsremoved', scheduleVenueAreaStyles);
+                } catch (e) {}
+
+                wmeSDK.Events.on({ eventName: 'wme-map-data-loaded', eventHandler: scheduleVenueAreaStyles });
+                try {
+                    wmeSDK.Events.on({ eventName: 'wme-selection-changed', eventHandler: scheduleVenueAreaStyles });
+                } catch (e) {}
+                try {
+                    W.selectionManager.events.register('selectionchanged', null, scheduleVenueAreaStyles);
+                } catch (e) {}
+
+                try {
+                    const layer = W.map.getLayerByUniqueName('landmarks');
+                    const target = layer?.div || layer?.renderer?.rendererRoot || W.map.div;
+                    new MutationObserver(scheduleVenueAreaStyles).observe(target, {
+                        childList: true,
+                        subtree: true
+                    });
+                } catch (e) {}
+            }
+
+            function initPlaceColors() {
+                if (!window.W || !W.map || !W.model) {
+                    setTimeout(initPlaceColors, 500);
+                    return;
+                }
+                registerPlaceAreaEvents();
+                applyVenueAreaStyles();
+
+                registerLabelRectEvents();
+                scheduleLabelRects();
+            }
 
             function getSegmentStreetNames(attr) {
                 const ids = [attr.primaryStreetID, ...(attr.streetIDs || [])];
@@ -2705,6 +3083,9 @@ function showCountryWarning(fromName, toName) {
                 registerVenueDomHighlightEvents();
                 mountStreetSearchUI();
                 scan();
+
+                registerLabelRectEvents();
+                scheduleLabelRects();
             }
 
             // ---------- Checkbox Event ----------
@@ -2766,7 +3147,6 @@ function showCountryWarning(fromName, toName) {
                 }
             });
 
-            // ---------- Auto enable on load ----------
             if (OPP_ENABLED) {
                 ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
                     initOPPOverlay();
@@ -2780,6 +3160,11 @@ function showCountryWarning(fromName, toName) {
             if (STREET_SEARCH_ENABLED) {
                 ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
                     initStreetSearch();
+                });
+            }
+            if (PLACE_COLORS_ENABLED) {
+                ('unsafeWindow' in window ? window.unsafeWindow : window).SDK_INITIALIZED.then(() => {
+                    initPlaceColors();
                 });
             }
             if (LOCK_ENABLED) {
@@ -2797,7 +3182,7 @@ function showCountryWarning(fromName, toName) {
                <ul style="padding-left:20px;">
                <li>Dark / Light mode</li>
                <li>Custom theme color</li>
-               <li>Speed Limits Highlighter</li>
+               <li>Recolor places (water, forest, swam, school, parking, gas station, etc.)</li>
                <li>Speed Limits Highlighter</li>
                <li>Highlight elements by street name</li>
                <li>Lower Lock Segments Highlighter – fix them in one click (only 🇵🇱)</li>
@@ -3204,10 +3589,6 @@ ${changelogHTML}
             const darker = main.getPropertyValue('--primary-darker');
             const chip = main.getPropertyValue('--wz-chip-checked-background-color');
 
-           // html.style.setProperty('--primary', primary);
-           // html.style.setProperty('--primary_variant', primary);
-           // if (darker) html.style.setProperty('--primary-darker', darker);
-           // if (chip) html.style.setProperty('--wz-chip-checked-background-color', chip);
         } catch (e) {
 
         }
