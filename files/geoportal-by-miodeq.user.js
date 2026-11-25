@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            WME Geoportal by Miodeq
-// @version         1.0.10
+// @version         1.1.1
 // @description     Geoportal layers to WME
 // @include         https://www.waze.com/editor*
 // @include         https://www.waze.com/*/editor*
@@ -10,7 +10,7 @@
 // @exclude         https://www.waze.com/*/user*
 // @run-at          document-end
 // @grant           none
-// @copyright       2025-2027, Miodeq
+// @copyright       2025-2026, Miodeq
 // @downloadURL     https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.user.js
 // @updateURL       https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/files/geoportal-by-miodeq.user.js
 // @icon            https://raw.githubusercontent.com/miodeq-ofc/waze-addons/main/logo.png
@@ -41,7 +41,7 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
     const GEOPORTAL_CATEGORIES = {
         "Ortofoto / OSM": ["Ortofoto", "Ortofoto szczegółowa", "OSM"],
         "Adresy i Ulice": ["Adresy" , "Ulice" , "Place"],
-        "Podział Administracyjny": ["Podział administracyjny", "Granice obrębów", "Gminy", "Powiaty", "Województwa", "Granica PL"],
+        "Podział Administracyjny": ["Podział administracyjny", "Miasta", "Granice obrębów", "Gminy", "Powiaty", "Województwa", "Granica PL"],
         "Topografia": ["Drogi", "Przejazdy kolejowe", "Obiekty topograficzne"],
         "BDOT": ["BDOT - Gruntowa", "BDOT - Utwardzona", "BDOT - Twarda", "BDOT - Główna", "BDOT - W budowie", "BDOT - Jezdnia", "BDOT - Autostrada", "BDOT - Numer drogi"]
     };
@@ -282,7 +282,8 @@ const SETTINGS_STORAGE_KEY = 'wme-geoportal-settings';
         createGeoLayer("Przejazdy kolejowe", GEOPORTAL_SERVICES.rail, "PMT_Linie_Kolejowe_Sp__z_o_o_", "image/png", { zIndex: 3000 });
         createGeoLayer("Drogi", GEOPORTAL_SERVICES.mileage, "planowane,wbudowie,pikietaz,drugorzedne,glowne,ekspresowe,autostrady", "image/png", { zIndex: 3000 });
         createGeoLayer("Podział administracyjny", GEOPORTAL_SERVICES.parcels, "dzialki,numery_dzialek", "image/png", { zIndex: 0 });
-        createGeoLayer("Granice obrębów", GEOPORTAL_SERVICES.border_city, "A04_Granice_miast", "image/png", { zIndex: 3000 });
+        createGeoLayer("Miasta", GEOPORTAL_SERVICES.border_city, "A04_Granice_miast", "image/png", { zIndex: 3000 });
+        createGeoLayer("Granice obrębów", GEOPORTAL_SERVICES.border_city, "A06_Granice_obrebow_ewidencyjnych", "image/png", { zIndex: 2999 });
         createGeoLayer("Gminy", GEOPORTAL_SERVICES.border_city, "A03_Granice_gmin", "image/png", { zIndex: 3000 });
         createGeoLayer("Powiaty", GEOPORTAL_SERVICES.border_city, "A02_Granice_powiatow", "image/png", { zIndex: 3000 });
         createGeoLayer("Województwa", GEOPORTAL_SERVICES.border_city, "A01_Granice_wojewodztw", "image/png", { zIndex: 3000 });
